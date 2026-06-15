@@ -12,7 +12,7 @@
   --bg:#0f1314; --app:#14181a; --rail:#0e1213; --panel:#1a1f21; --panel2:#1e2426;
   --bord:rgba(255,255,255,.10); --bord2:rgba(255,255,255,.06);
   --txt:#E8EAE9; --sec:#7e8785; --ter:#6b7472;
-  --teal:#38BDB0; --amber:#E6A23C; --red:#FF5A3C; --pur:#9b8cf0;
+  --teal:#38BDB0; --amber:#E6A23C; --red:#FF5A3C; --pur:#9b8cf0; --blue:#5B9DE3;
   --pend:#2a3032;
   --sans:'Inter',-apple-system,'Segoe UI',Roboto,sans-serif;
   --disp:'Space Grotesk',var(--sans);
@@ -124,6 +124,17 @@ h1{font-family:var(--disp);font-size:22px;font-weight:600;letter-spacing:-.3px}
 .chip[data-c="Edición"]{color:var(--teal);border-color:rgba(56,212,176,.35)}
 .chip[data-c="Sonido"]{color:var(--pur);border-color:rgba(155,140,240,.35)}
 .chip[data-c="Color"]{color:var(--amber);border-color:rgba(230,162,60,.35)}
+.chip[data-c="Contenido"]{color:var(--blue);border-color:rgba(91,157,227,.35)}
+.entry{background:var(--panel);border:1px solid var(--bord);border-radius:var(--r);padding:12px 14px;cursor:pointer;transition:transform .12s ease,border-color .2s ease}
+.entry:hover{transform:translateY(-1px);border-color:var(--sec)}
+.entry.gate{border-left:3px solid var(--amber)}
+.alertrow{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--bord2);font-size:12.5px}
+.alertrow:last-of-type{border-bottom:none}
+.alertrow .x{margin-left:auto;color:var(--ter);width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center}
+.alertrow .x:hover{color:var(--txt);background:var(--panel2)}
+.noteitem .acts{display:flex;gap:3px}
+.noteitem .acts button{color:var(--ter);width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center}
+.noteitem .acts button:hover{color:var(--txt);background:var(--panel2)}
 .chip.sel{background:var(--panel2);box-shadow:inset 0 0 0 1px currentColor}
 
 /* note quick form */
@@ -217,6 +228,7 @@ tr:hover td{background:var(--panel)}
   <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
   <symbol id="i-chev" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
+  <symbol id="i-chevr" viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></symbol>
   <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 9v4"/><path d="M10.3 3.9 1.7 18a2 2 0 0 0 1.7 3h17.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 17h.01"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></symbol>
   <symbol id="i-edit" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></symbol>
@@ -298,11 +310,11 @@ const PASOS = [
 ];
 const GATE_IDX = 4;       // paso 5
 const BACKUP_IDX = 9;     // paso 10 (último)
-const CATS = ["Edición","Sonido","Color"];
+const CATS = ["Edición","Sonido","Color","Contenido"];
 const TIPOS = ["Pieza completa","Corta YouTube","RRSS","Otro"];
 
 /* ---------- estado ---------- */
-const state = { piezas:[], historico:[], discos:[], notas:[], listas:[], avisos:[], expanded:new Set() };
+const state = { piezas:[], historico:[], discos:[], notas:[], listas:[], avisos:[], alertas:[], sel:null, notesOpen:false };
 let current = "prod";
 const $ = s => document.querySelector(s);
 const el = (h)=>{const t=document.createElement("template");t.innerHTML=h.trim();return t.content.firstChild;};
@@ -321,12 +333,13 @@ const upd = (name,id,data)=>updateDoc(doc(db,name,id),data);
 const del = (name,id)=>deleteDoc(doc(db,name,id));
 
 function listen(){
-  onSnapshot(col("piezas"), s=>{ state.piezas=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="prod")render(); });
+  onSnapshot(col("piezas"), s=>{ state.piezas=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="prod"||current==="detail")render(); });
   onSnapshot(col("historico"), s=>{ state.historico=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="hist")render(); });
   onSnapshot(col("discos"), s=>{ state.discos=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="disk"||current==="prod")render(); });
-  onSnapshot(col("notas"), s=>{ state.notas=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="note")render(); });
+  onSnapshot(col("notas"), s=>{ state.notas=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="note"||current==="detail")render(); });
   onSnapshot(col("listas"), s=>{ state.listas=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="prod")render(); });
   onSnapshot(col("avisos"), s=>{ state.avisos=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="prod")render(); checkAvisos(); });
+  onSnapshot(col("alertas"), s=>{ state.alertas=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="prod")render(); });
 }
 
 /* ============ AUTH ============ */
@@ -364,10 +377,12 @@ document.querySelectorAll(".nav").forEach(b=>b.onclick=()=>{
 function render(){
   const m=$("#main");
   if(current==="prod") m.innerHTML="", m.appendChild(viewProd());
+  if(current==="detail") m.innerHTML="", m.appendChild(viewDetail());
   if(current==="hist") m.innerHTML="", m.appendChild(viewHist());
   if(current==="disk") m.innerHTML="", m.appendChild(viewDisk());
   if(current==="note") m.innerHTML="", m.appendChild(viewNote());
 }
+function openDetail(id){ state.sel=id; state.notesOpen=false; current="detail"; document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view==="prod")); render(); }
 
 /* ---------- pieza helpers ---------- */
 const activePiezas = ()=>state.piezas.filter(p=>!p.archived).sort((a,b)=>(a.fechaPub||"").localeCompare(b.fechaPub||""));
@@ -377,7 +392,7 @@ function nextStep(p){ const pasos=progress(p); const i=pasos.findIndex(x=>!x); r
 /* ============ VIEW: PRODUCCIÓN ============ */
 function viewProd(){
   const v=el(`<div class="view"></div>`);
-  const head=el(`<div class="head"><div><div class="kick">Producción actual</div><h1>${activePiezas().length} pieza${activePiezas().length===1?"":"s"} en curso</h1></div></div>`);
+  const head=el(`<div class="head"><h1>Producción</h1></div>`);
   const addBtn=el(`<button class="btn primary"><svg class="svg"><use href="#i-plus"/></svg>Nueva pieza</button>`);
   addBtn.onclick=()=>modalPieza();
   head.appendChild(addBtn); v.appendChild(head);
@@ -386,57 +401,26 @@ function viewProd(){
   const left=el(`<div class="stack"></div>`);
   const list=activePiezas();
   if(!list.length){ left.appendChild(el(`<div class="empty"><div class="big">Aún no hay piezas</div>Crea tu primera pieza para empezar el seguimiento.</div>`)); }
-  list.forEach(p=>left.appendChild(pieceCard(p)));
+  list.forEach(p=>left.appendChild(entryCard(p)));
   grid.appendChild(left);
   grid.appendChild(sidePanels());
   v.appendChild(grid);
   return v;
 }
 
-function pieceCard(p){
-  const pasos=progress(p);
-  const ni=nextStep(p);
-  const isGate = ni===GATE_IDX;
-  const card=el(`<div class="pcard ${isGate?'gate':''} ${state.expanded.has(p.id)?'open':''}"></div>`);
+function entryCard(p){
+  const pasos=progress(p); const ni=nextStep(p); const isGate=ni===GATE_IDX;
+  const nNotas=state.notas.filter(n=>n.piezaId===p.id).length;
   const segs=pasos.map((d,i)=>`<span class="${d?'d':(i===GATE_IDX&&isGate?'g':'')}"></span>`).join("");
-  const statusTxt = ni===-1 ? "Completada" : (isGate?`Pendiente: ${PASOS[GATE_IDX]}`:`${PASOS[ni]}`);
-  const top=el(`<div class="top">
-    <div class="row1"><span class="name">${esc(p.protagonista||"Sin nombre")}</span>
+  const statusTxt = ni===-1 ? "Lista para máster" : PASOS[ni];
+  const card=el(`<div class="entry ${isGate?'gate':''}">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span style="font-size:15px;font-weight:500">${esc(p.protagonista||"Sin nombre")}</span>
       ${isGate?`<span class="tag" style="color:var(--amber)">paso 5</span>`:`<span class="tag">${esc(p.proyecto||"")}</span>`}</div>
     <div class="bar">${segs}</div>
-    <div class="row3"><span class="status ${isGate?'gate':''}">${esc(statusTxt)}</span>
-      <span class="expander">ver pasos <svg class="svg"><use href="#i-chev"/></svg></span></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:2px"><span class="status ${isGate?'gate':''}">${esc(statusTxt)}</span>
+      <span class="expander"><svg class="svg"><use href="#i-note"/></svg> ${nNotas} · abrir <svg class="svg"><use href="#i-chevr"/></svg></span></div>
   </div>`);
-  top.onclick=()=>{ if(state.expanded.has(p.id)){state.expanded.delete(p.id);card.classList.remove("open");}else{state.expanded.add(p.id);card.classList.add("open");} };
-  card.appendChild(top);
-
-  const det=el(`<div class="detail"><div class="detail-in"></div></div>`);
-  const din=det.querySelector(".detail-in");
-  PASOS.forEach((label,i)=>{
-    if(i===GATE_IDX){ din.appendChild(gateBox(p)); return; }
-    const done=pasos[i];
-    const meta = p.fechas&&p.fechas[i] ? fmtDate(p.fechas[i]) : (i===ni?"en curso":"");
-    const step=el(`<div class="step ${done?'done':''}">
-      <span class="check ${done?'on':''}"><svg class="svg"><use href="#i-check"/></svg></span>
-      <span class="lbl">${i+1} · ${esc(label)}</span>
-      <span class="meta">${meta}</span>
-      <button class="bell" title="Crear aviso"><svg class="svg"><use href="#i-bell"/></svg></button>
-    </div>`);
-    step.querySelector(".check").onclick=()=>toggleStep(p,i,!done);
-    step.querySelector(".bell").onclick=()=>modalAviso(`${PASOS[i]} · ${p.protagonista}`, p.id);
-    if(i===BACKUP_IDX) din.appendChild(el(`<div style="font-size:11px;color:var(--sec);margin:-2px 0 0 31px">Al marcarlo te pregunto el disco y archivo la pieza en Backup.</div>`));
-    din.appendChild(step);
-  });
-  // notas + borrar
-  const foot=el(`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:11px;border-top:1px solid var(--bord2)">
-    <span style="font-size:11px;color:var(--sec)">${p.notas?esc(p.notas):'Sin notas'}</span></div>`);
-  const fb=el(`<div style="display:flex;gap:6px"></div>`);
-  const ed=el(`<button class="btn" style="padding:5px 9px"><svg class="svg"><use href="#i-edit"/></svg></button>`); ed.onclick=()=>modalPieza(p);
-  const rm=el(`<button class="btn" style="padding:5px 9px;color:var(--ter)"><svg class="svg"><use href="#i-trash"/></svg></button>`);
-  rm.onclick=()=>{ if(confirm(`¿Eliminar la pieza "${p.protagonista}"?`)) del("piezas",p.id); };
-  fb.appendChild(ed); fb.appendChild(rm); foot.appendChild(fb);
-  din.appendChild(foot);
-  card.appendChild(det);
+  card.onclick=()=>openDetail(p.id);
   return card;
 }
 
@@ -461,31 +445,20 @@ async function toggleStep(p,i,val){
 
 function sidePanels(){
   const s=el(`<div class="stack"></div>`);
-  // Nota rápida
-  const np=el(`<div class="panel"><div class="ph">Nueva nota rápida</div></div>`);
-  const piezaOpts = activePiezas().map(p=>`<option value="${p.id}">${esc(p.protagonista)}</option>`).join("");
-  const qf=el(`<div class="qf">
-    <div class="two">
-      <select class="nf-pieza"><option value="">Pieza…</option>${piezaOpts}</select>
-      <input class="nf-tc mono" style="max-width:108px" placeholder="00:00:00" value="00:00:00">
-    </div>
-    <select class="nf-tipo">${TIPOS.map(t=>`<option>${t}</option>`).join("")}</select>
-    <div class="chips nf-cats">${CATS.map((c,i)=>`<span class="chip ${i===0?'sel':''}" data-c="${c}">${c}</span>`).join("")}</div>
-    <textarea class="nf-txt" rows="2" placeholder="Anotación…"></textarea>
-    <button class="btn primary nf-save"><svg class="svg"><use href="#i-copy"/></svg>Guardar y copiar</button>
-  </div>`);
-  let cat=CATS[0];
-  qf.querySelectorAll(".nf-cats .chip").forEach(ch=>ch.onclick=()=>{cat=ch.dataset.c;qf.querySelectorAll(".chip").forEach(x=>x.classList.toggle("sel",x===ch));});
-  qf.querySelector(".nf-save").onclick=async()=>{
-    const txt=qf.querySelector(".nf-txt").value.trim(); if(!txt){toast("Escribe la anotación");return;}
-    const piezaId=qf.querySelector(".nf-pieza").value;
-    const pieza = state.piezas.find(p=>p.id===piezaId);
-    const note={ texto:txt, categoria:cat, tipo:qf.querySelector(".nf-tipo").value, tc:qf.querySelector(".nf-tc").value, pieza:pieza?pieza.protagonista:"", piezaId };
-    await add("notas",note);
-    copy(formatNote(note));
-    qf.querySelector(".nf-txt").value="";
-  };
-  np.appendChild(qf); s.appendChild(np);
+  // Atención (alertas manuales)
+  const at=el(`<div class="panel"><div class="ph">Atención <button class="add"><svg class="svg" style="width:14px;height:14px"><use href="#i-plus"/></svg></button></div></div>`);
+  at.querySelector(".add").onclick=()=>modalAlerta();
+  const ab=el(`<div></div>`);
+  if(!state.alertas.length) ab.appendChild(el(`<div style="font-size:12px;color:var(--ter)">Sin alertas. Crea una para no perder de vista algo importante.</div>`));
+  const colmap={info:"var(--teal)",aviso:"var(--amber)",urgente:"var(--red)"};
+  state.alertas.forEach(a=>{
+    const c=colmap[a.nivel]||"var(--teal)";
+    const ico = a.nivel==="urgente" ? `<svg class="svg" style="width:15px;height:15px;color:${c}"><use href="#i-alert"/></svg>` : `<span style="color:${c};font-size:11px">●</span>`;
+    const row=el(`<div class="alertrow">${ico}<span>${esc(a.texto)}</span><button class="x"><svg class="svg" style="width:13px;height:13px"><use href="#i-x"/></svg></button></div>`);
+    row.querySelector(".x").onclick=()=>del("alertas",a.id);
+    ab.appendChild(row);
+  });
+  at.appendChild(ab); s.appendChild(at);
 
   // Listas de email
   const le=el(`<div class="panel"><div class="ph">Listas de email <button class="ed"><svg class="svg" style="width:14px;height:14px"><use href="#i-edit"/></svg></button></div></div>`);
@@ -497,22 +470,137 @@ function sidePanels(){
 
   // Avisos
   const av=el(`<div class="panel"><div class="ph">Avisos</div></div>`);
-  const ab=el(`<div></div>`);
+  const ab2=el(`<div></div>`);
   const pend=state.avisos.filter(a=>!a.done).sort((a,b)=>(a.cuando||"").localeCompare(b.cuando||""));
-  if(!pend.length) ab.appendChild(el(`<div style="font-size:12px;color:var(--ter)">Sin avisos pendientes.</div>`));
+  if(!pend.length) ab2.appendChild(el(`<div style="font-size:12px;color:var(--ter)">Sin avisos pendientes.</div>`));
   pend.forEach(a=>{
     const over = a.cuando && new Date(a.cuando)<new Date();
     const row=el(`<div class="aviso ${over?'over':''}"><svg class="svg"><use href="#i-bell"/></svg><span>${esc(a.texto)}</span><span class="when">${fmtDT(a.cuando)}</span><button class="x" style="width:22px;height:22px"><svg class="svg" style="width:13px;height:13px"><use href="#i-x"/></svg></button></div>`);
     row.querySelector(".x").onclick=()=>del("avisos",a.id);
-    ab.appendChild(row);
+    ab2.appendChild(row);
   });
   const addAv=el(`<button class="btn" style="width:100%;justify-content:center;margin-top:9px"><svg class="svg"><use href="#i-plus"/></svg>Nuevo aviso</button>`);
   addAv.onclick=()=>modalAviso();
-  av.appendChild(ab); av.appendChild(addAv); s.appendChild(av);
+  av.appendChild(ab2); av.appendChild(addAv); s.appendChild(av);
   return s;
 }
 
 function formatNote(n){ return `[${n.categoria}] ${n.tipo}\nTC ${n.tc}${n.pieza?` · ${n.pieza}`:""}\n${n.texto}`; }
+
+function fmtFechaPub(iso){ const d=new Date(iso); if(isNaN(d)) return esc(iso); let w=d.toLocaleDateString("es-ES",{weekday:"long"}); w=w.charAt(0).toUpperCase()+w.slice(1); return `${w} · ${d.toLocaleDateString("es-ES",{day:"2-digit",month:"2-digit"})}`; }
+
+function goProd(){ current="prod"; document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view==="prod")); render(); }
+
+/* ============ VIEW: DETALLE DE PIEZA ============ */
+function viewDetail(){
+  const v=el(`<div class="view"></div>`);
+  const p=state.piezas.find(x=>x.id===state.sel);
+  if(!p){ v.appendChild(el(`<div class="empty"><div class="big">Pieza no disponible</div>Puede que se haya archivado en Backup.</div>`)); const b=el(`<button class="btn" style="margin-top:12px">‹ Volver a Producción</button>`); b.onclick=goProd; v.appendChild(b); return v; }
+  const pasos=progress(p); const ni=nextStep(p);
+
+  const back=el(`<div style="font-size:13px;color:var(--sec);margin-bottom:10px;cursor:pointer">‹ Producción</div>`);
+  back.onclick=goProd; v.appendChild(back);
+
+  const hd=el(`<div class="head"><div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap"><h1>${esc(p.protagonista)}</h1><span class="tag" style="color:var(--teal)">${esc(p.proyecto||"")}</span></div></div>`);
+  const hacts=el(`<div style="display:flex;align-items:center;gap:10px">
+    <span style="font-size:12px;color:var(--sec);font-family:var(--mono)">${p.fechaPub?esc(fmtFechaPub(p.fechaPub)):"sin fecha"}</span>
+    <button class="btn ed" style="padding:6px 10px"><svg class="svg"><use href="#i-edit"/></svg></button>
+    <button class="btn rm" style="padding:6px 10px;color:var(--ter)"><svg class="svg"><use href="#i-trash"/></svg></button></div>`);
+  hacts.querySelector(".ed").onclick=()=>modalPieza(p);
+  hacts.querySelector(".rm").onclick=()=>{ if(confirm(`¿Eliminar la pieza "${p.protagonista}"?`)){ del("piezas",p.id); goProd(); } };
+  hd.appendChild(hacts); v.appendChild(hd);
+
+  const grid=el(`<div class="cockpit"></div>`);
+  // LEFT: progreso
+  const left=el(`<div></div>`);
+  left.appendChild(el(`<div class="ph" style="font-family:var(--mono);font-size:11px;letter-spacing:1.5px;color:var(--sec);text-transform:uppercase;margin-bottom:10px">Progreso · paso ${ni===-1?PASOS.length:ni+1} de ${PASOS.length}</div>`));
+  left.appendChild(el(`<div class="bar" style="margin-bottom:12px">${pasos.map((d,i)=>`<span class="${d?'d':(i===GATE_IDX&&ni===GATE_IDX?'g':'')}"></span>`).join("")}</div>`));
+  const cl=el(`<div></div>`);
+  PASOS.forEach((label,i)=>{
+    if(i===GATE_IDX){ cl.appendChild(gateBox(p)); return; }
+    const done=pasos[i];
+    const meta = p.fechas&&p.fechas[i] ? fmtDate(p.fechas[i]) : (i===ni?"en curso":"");
+    const step=el(`<div class="step ${done?'done':''}">
+      <span class="check ${done?'on':''}"><svg class="svg"><use href="#i-check"/></svg></span>
+      <span class="lbl">${i+1} · ${esc(label)}</span>
+      <span class="meta">${meta}</span>
+      <button class="bell" title="Crear aviso"><svg class="svg"><use href="#i-bell"/></svg></button>
+    </div>`);
+    step.querySelector(".check").onclick=()=>toggleStep(p,i,!done);
+    step.querySelector(".bell").onclick=()=>modalAviso(`${PASOS[i]} · ${p.protagonista}`, p.id);
+    cl.appendChild(step);
+  });
+  left.appendChild(cl);
+  left.appendChild(el(`<div style="font-size:11px;color:var(--sec);margin:8px 0 0 31px">Al marcar "Hacer backup" te pregunto el disco y archivo la pieza en Backup.</div>`));
+
+  // RIGHT: notas + añadir + comentarios
+  const right=el(`<div class="stack"></div>`);
+  right.appendChild(notesSection(p));
+  right.appendChild(addNoteForm(p));
+  const com=el(`<div class="panel"><div class="ph">Otros comentarios</div></div>`);
+  const ta=el(`<textarea rows="3" placeholder="Notas generales de la pieza…">${esc(p.comentarios||"")}</textarea>`);
+  ta.onchange=()=>{ upd("piezas",p.id,{comentarios:ta.value}); toast("Comentarios guardados"); };
+  com.appendChild(ta); right.appendChild(com);
+
+  grid.appendChild(left); grid.appendChild(right);
+  v.appendChild(grid);
+  return v;
+}
+
+function notesSection(p){
+  const notes=state.notas.filter(n=>n.piezaId===p.id).slice().reverse();
+  const wrap=el(`<div></div>`);
+  const hd=el(`<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-family:var(--mono);font-size:11px;letter-spacing:1.5px;color:var(--sec);text-transform:uppercase">Notas de revisión · ${notes.length}</div></div>`);
+  if(notes.length){ const ca=el(`<button style="font-size:11px;color:var(--teal);display:flex;align-items:center;gap:5px"><svg class="svg" style="width:13px;height:13px"><use href="#i-copy"/></svg>copiar todas</button>`); ca.onclick=()=>copy(notes.map(formatNote).join("\n\n———\n\n")); hd.appendChild(ca); }
+  wrap.appendChild(hd);
+  const box=el(`<div style="margin-top:8px"></div>`);
+  if(!notes.length) box.appendChild(el(`<div style="font-size:12px;color:var(--ter);padding:6px 0">Sin notas todavía. Las añades abajo cuando recibas feedback.</div>`));
+  (state.notesOpen?notes:notes.slice(0,2)).forEach(n=>box.appendChild(noteItem(n)));
+  wrap.appendChild(box);
+  if(notes.length>2){
+    const t=el(`<button style="font-size:12px;color:var(--sec);margin-top:8px">${state.notesOpen?"Ocultar notas":"Ver las "+notes.length+" notas"}</button>`);
+    t.onclick=()=>{ state.notesOpen=!state.notesOpen; render(); };
+    wrap.appendChild(t);
+  }
+  return wrap;
+}
+
+function noteItem(n){
+  const c=CATS.includes(n.categoria)?n.categoria:"Edición";
+  const it=el(`<div class="noteitem" style="display:flex;align-items:flex-start;gap:9px;padding:8px 0;border-bottom:1px solid var(--bord2)">
+    <span class="chip sel" data-c="${c}" style="cursor:default">${esc(n.categoria||"")}</span>
+    <span class="mono" style="font-size:11px;color:var(--teal);white-space:nowrap;padding-top:3px">${esc(n.tc||"")}</span>
+    <span style="font-size:12.5px;flex:1">${esc(n.texto||"")}</span>
+    <span class="acts"><button class="cp" title="Copiar"><svg class="svg" style="width:14px;height:14px"><use href="#i-copy"/></svg></button><button class="ed" title="Editar"><svg class="svg" style="width:14px;height:14px"><use href="#i-edit"/></svg></button><button class="rm" title="Eliminar"><svg class="svg" style="width:14px;height:14px"><use href="#i-trash"/></svg></button></span>
+  </div>`);
+  it.querySelector(".cp").onclick=()=>copy(formatNote(n));
+  it.querySelector(".ed").onclick=()=>modalNota(n);
+  it.querySelector(".rm").onclick=()=>{ if(confirm("¿Eliminar esta nota?")) del("notas",n.id); };
+  return it;
+}
+
+function addNoteForm(p){
+  const box=el(`<div class="panel"><div class="ph">Añadir nota</div></div>`);
+  const qf=el(`<div class="qf">
+    <div class="two">
+      <select class="nf-tipo" style="flex:1">${TIPOS.map(t=>`<option>${t}</option>`).join("")}</select>
+      <input class="nf-tc mono" style="max-width:108px" placeholder="00:00:00" value="00:00:00">
+    </div>
+    <div class="chips nf-cats">${CATS.map((c,i)=>`<span class="chip ${i===0?'sel':''}" data-c="${c}">${c}</span>`).join("")}</div>
+    <textarea class="nf-txt" rows="2" placeholder="Anotación…"></textarea>
+    <button class="btn primary nf-save"><svg class="svg"><use href="#i-copy"/></svg>Guardar y copiar</button>
+  </div>`);
+  let cat=CATS[0];
+  qf.querySelectorAll(".nf-cats .chip").forEach(ch=>ch.onclick=()=>{cat=ch.dataset.c;qf.querySelectorAll(".chip").forEach(x=>x.classList.toggle("sel",x===ch));});
+  qf.querySelector(".nf-save").onclick=async()=>{
+    const txt=qf.querySelector(".nf-txt").value.trim(); if(!txt){toast("Escribe la anotación");return;}
+    const note={ texto:txt, categoria:cat, tipo:qf.querySelector(".nf-tipo").value, tc:qf.querySelector(".nf-tc").value, pieza:p.protagonista, piezaId:p.id };
+    await add("notas",note);
+    copy(formatNote(note));
+    qf.querySelector(".nf-txt").value="";
+  };
+  box.appendChild(qf); return box;
+}
 
 /* ============ VIEW: HISTÓRICO ============ */
 let histFilter={q:"",proj:"",disk:""};
@@ -659,7 +747,7 @@ function modalBackup(p){
     await upd("piezas",p.id,{pasos,fechas,archived:true});
     await add("historico",{ pieza:p.protagonista, proyecto:p.proyecto, disco:disk?disk.nombre:"", pesoGB:peso||null, enviadoOficina:false, fechaEnvio:null, fechaArchivo:new Date().toISOString(), piezaId:p.id });
     if(disk && peso) await upd("discos",disk.id,{usadoGB:num(disk.usadoGB)+peso});
-    closeModal(m); toast("Backup hecho · guardado en la pestaña Backup");
+    closeModal(m); toast("Backup hecho · guardado en la pestaña Backup"); if(current==="detail") goProd();
   };
   openModal(m);
 }
@@ -729,6 +817,43 @@ function modalListas(){
 }
 
 /* ---------- avisos: notificación mientras la app está abierta ---------- */
+function modalAlerta(){
+  const m=el(`<div class="modal"><div class="mh"><h2>Nueva alerta</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
+    <div class="mb">
+      <div><label>¿Qué tienes que vigilar?</label><input class="f-txt" placeholder="ej. Disco LACIE_04 casi lleno"></div>
+      <div><label>Nivel</label><select class="f-niv"><option value="info">Info</option><option value="aviso" selected>Aviso</option><option value="urgente">Urgente</option></select></div>
+    </div>
+    <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">Crear alerta</button></div></div>`);
+  m.querySelector(".x").onclick=()=>closeModal(m);
+  m.querySelector(".cancel").onclick=()=>closeModal(m);
+  m.querySelector(".save").onclick=async()=>{
+    const txt=m.querySelector(".f-txt").value.trim(); if(!txt){toast("Escribe la alerta");return;}
+    await add("alertas",{ texto:txt, nivel:m.querySelector(".f-niv").value });
+    closeModal(m); toast("Alerta creada");
+  };
+  openModal(m);
+}
+
+function modalNota(n){
+  const m=el(`<div class="modal"><div class="mh"><h2>Editar nota</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
+    <div class="mb">
+      <div style="display:flex;gap:9px"><div style="flex:1"><label>Tipo</label><select class="f-tipo">${TIPOS.map(t=>`<option ${n.tipo===t?"selected":""}>${t}</option>`).join("")}</select></div><div style="width:120px"><label>TC</label><input class="f-tc mono" value="${esc(n.tc||'')}"></div></div>
+      <div><label>Categoría</label><div class="chips f-cats">${CATS.map(c=>`<span class="chip ${n.categoria===c?'sel':''}" data-c="${c}">${c}</span>`).join("")}</div></div>
+      <div><label>Anotación</label><textarea class="f-txt" rows="3">${esc(n.texto||'')}</textarea></div>
+    </div>
+    <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">Guardar</button></div></div>`);
+  let cat=CATS.includes(n.categoria)?n.categoria:CATS[0];
+  m.querySelectorAll(".f-cats .chip").forEach(ch=>ch.onclick=()=>{cat=ch.dataset.c;m.querySelectorAll(".f-cats .chip").forEach(x=>x.classList.toggle("sel",x===ch));});
+  m.querySelector(".x").onclick=()=>closeModal(m);
+  m.querySelector(".cancel").onclick=()=>closeModal(m);
+  m.querySelector(".save").onclick=async()=>{
+    const txt=m.querySelector(".f-txt").value.trim(); if(!txt){toast("Escribe la anotación");return;}
+    await upd("notas",n.id,{ texto:txt, categoria:cat, tipo:m.querySelector(".f-tipo").value, tc:m.querySelector(".f-tc").value });
+    closeModal(m); toast("Nota actualizada");
+  };
+  openModal(m);
+}
+
 function checkAvisos(){
   if(!("Notification" in window) || Notification.permission!=="granted") return;
   const now=Date.now();
