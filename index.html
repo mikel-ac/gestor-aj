@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Editor Ops</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0f1314; --app:#14181a; --rail:#0e1213; --panel:#1a1f21; --panel2:#1e2426;
+  --bord:rgba(255,255,255,.10); --bord2:rgba(255,255,255,.06);
+  --txt:#E8EAE9; --sec:#7e8785; --ter:#6b7472;
+  --teal:#38BDB0; --amber:#E6A23C; --red:#FF5A3C; --pur:#9b8cf0;
+  --pend:#2a3032;
+  --sans:'Inter',-apple-system,'Segoe UI',Roboto,sans-serif;
+  --disp:'Space Grotesk',var(--sans);
+  --mono:'JetBrains Mono','SF Mono',Menlo,Consolas,monospace;
+  --r:10px; --r-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--sans);background:var(--bg);color:var(--txt);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:none}
+input,select,textarea{font-family:inherit;color:var(--txt);background:var(--bg);border:1px solid var(--bord);border-radius:var(--r-sm);padding:9px 11px;font-size:13px;width:100%}
+input:focus,select,textarea:focus{outline:none;border-color:var(--teal)}
+select{background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237e8785' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center;appearance:none;padding-right:30px}
+.mono{font-family:var(--mono)}
+.svg{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.hidden{display:none!important}
+
+/* ---------- LOGIN ---------- */
+#login{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;background:radial-gradient(120% 120% at 50% 0%,#1a2122 0%,var(--bg) 60%);text-align:center;padding:24px}
+#login .brand{font-family:var(--disp);font-weight:700;font-size:34px;letter-spacing:-.5px}
+#login .kick{font-family:var(--mono);font-size:12px;color:var(--teal);letter-spacing:3px;text-transform:uppercase}
+#login p{color:var(--sec);max-width:340px}
+.gbtn{display:inline-flex;align-items:center;gap:11px;background:#fff;color:#1f1f1f;font-weight:500;font-size:15px;padding:12px 22px;border-radius:var(--r);transition:transform .15s ease,box-shadow .15s ease}
+.gbtn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.gbtn svg{width:20px;height:20px}
+
+/* ---------- APP SHELL ---------- */
+#app{display:flex;height:100vh;opacity:0;transition:opacity .4s ease}
+#app.in{opacity:1}
+.rail{width:60px;background:var(--rail);border-right:1px solid var(--bord);display:flex;flex-direction:column;align-items:center;padding:14px 0;flex:none;z-index:20}
+.rail .logo{font-family:var(--disp);font-weight:700;color:var(--teal);font-size:18px;margin-bottom:22px}
+.rail nav{display:flex;flex-direction:column;gap:6px;align-items:center;width:100%}
+.rail button.nav{width:44px;height:44px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;color:var(--ter);position:relative;transition:color .2s ease,background .2s ease}
+.rail button.nav .svg{width:21px;height:21px}
+.rail button.nav:hover{color:var(--txt);background:var(--panel)}
+.rail button.nav.active{color:var(--teal)}
+.rail button.nav.active::before{content:"";position:absolute;left:-0px;top:9px;bottom:9px;width:3px;border-radius:2px;background:var(--teal)}
+.rail .tip{position:absolute;left:54px;background:var(--panel2);color:var(--txt);font-size:12px;padding:5px 9px;border-radius:6px;white-space:nowrap;opacity:0;pointer-events:none;transform:translateX(-4px);transition:.15s;border:1px solid var(--bord);z-index:30}
+.rail button.nav:hover .tip{opacity:1;transform:translateX(0)}
+.rail .spacer{margin-top:auto}
+.rail .me{width:34px;height:34px;border-radius:50%;background:var(--panel2);overflow:hidden;border:1px solid var(--bord);margin-top:10px}
+.rail .me img{width:100%;height:100%;object-fit:cover}
+
+main{flex:1;overflow-y:auto;padding:22px 26px 60px}
+.view{animation:fade .35s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:12px;flex-wrap:wrap}
+.kick{font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--sec)}
+h1{font-family:var(--disp);font-size:22px;font-weight:600;letter-spacing:-.3px}
+.btn{display:inline-flex;align-items:center;gap:7px;background:var(--panel2);border:1px solid var(--bord);border-radius:var(--r-sm);padding:8px 13px;font-size:13px;color:var(--txt);transition:transform .12s ease,border-color .2s ease,background .2s ease}
+.btn:hover{transform:translateY(-1px);border-color:var(--sec)}
+.btn .svg{width:16px;height:16px}
+.btn.primary{background:transparent;border-color:rgba(56,212,176,.4);color:var(--teal)}
+.btn.primary:hover{background:rgba(56,212,176,.08)}
+.tag{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:6px;background:var(--panel2);color:var(--sec);white-space:nowrap}
+
+/* ---------- PRODUCCIÓN ---------- */
+.cockpit{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr);gap:16px;align-items:start}
+.stack{display:flex;flex-direction:column;gap:10px}
+.panel{background:var(--panel);border:1px solid var(--bord);border-radius:var(--r);padding:14px 15px}
+.panel .ph{font-family:var(--mono);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--sec);margin-bottom:11px;display:flex;align-items:center;justify-content:space-between}
+.panel .ph button{color:var(--ter)}
+.panel .ph button:hover{color:var(--txt)}
+
+.pcard{background:var(--panel);border:1px solid var(--bord);border-radius:var(--r);overflow:hidden;transition:border-color .2s ease}
+.pcard.gate{border-left:3px solid var(--amber)}
+.pcard .top{padding:13px 15px;cursor:pointer;display:flex;flex-direction:column;gap:9px;transition:background .15s ease}
+.pcard .top:hover{background:var(--panel2)}
+.pcard .row1{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.pcard .name{font-size:16px;font-weight:500}
+.bar{display:flex;gap:3px}
+.bar span{flex:1;height:5px;border-radius:2px;background:var(--pend);transition:background .4s ease}
+.bar span.d{background:var(--teal)}
+.bar span.g{background:var(--amber)}
+.pcard .row3{display:flex;align-items:center;justify-content:space-between}
+.status{font-size:12px;color:var(--sec)}
+.status.gate{color:var(--amber)}
+.expander{font-size:11px;color:var(--ter);display:flex;align-items:center;gap:4px}
+.expander .svg{width:14px;height:14px;transition:transform .25s ease}
+.pcard.open .expander .svg{transform:rotate(180deg)}
+.detail{max-height:0;overflow:hidden;transition:max-height .35s ease;border-top:1px solid transparent}
+.pcard.open .detail{max-height:1200px;border-top-color:var(--bord)}
+.detail-in{padding:6px 15px 14px}
+
+.step{display:flex;align-items:center;gap:11px;padding:8px 0;border-bottom:1px solid var(--bord2)}
+.step:last-child{border-bottom:none}
+.check{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--ter);flex:none;display:flex;align-items:center;justify-content:center;color:var(--bg);transition:.2s;cursor:pointer}
+.check .svg{width:13px;height:13px;opacity:0;transform:scale(.5);transition:.2s;stroke-width:3}
+.check.on{background:var(--teal);border-color:var(--teal)}
+.check.on .svg{opacity:1;transform:scale(1)}
+.step .lbl{font-size:13px;flex:1}
+.step.done .lbl{color:#9aa09d;text-decoration:line-through}
+.step .meta{font-family:var(--mono);font-size:11px;color:var(--sec)}
+.step .bell{color:var(--ter);width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center}
+.step .bell:hover{color:var(--amber);background:var(--panel2)}
+.step .bell .svg{width:15px;height:15px}
+.gatebox{border-left:3px solid var(--amber);background:var(--panel2);border-radius:0 var(--r-sm) var(--r-sm) 0;padding:9px 12px;margin:8px 0}
+.gatebox .gt{font-size:13px;margin-bottom:7px}
+.gatebox .gt em{color:var(--amber);font-style:normal;font-family:var(--mono);font-size:11px}
+.subrow{display:flex;align-items:center;gap:10px;padding:4px 0;font-size:12px}
+.subrow .mini{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--ter);flex:none;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.subrow .mini.on{background:var(--amber);border-color:var(--amber)}
+.subrow .mini .svg{width:10px;height:10px;color:var(--bg);opacity:0;stroke-width:3}
+.subrow .mini.on .svg{opacity:1}
+
+/* chips */
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:11px;padding:3px 9px;border-radius:7px;border:1px solid var(--bord);color:var(--sec);cursor:pointer;transition:.15s;background:transparent}
+.chip[data-c="Edición"]{color:var(--teal);border-color:rgba(56,212,176,.35)}
+.chip[data-c="Sonido"]{color:var(--pur);border-color:rgba(155,140,240,.35)}
+.chip[data-c="Color"]{color:var(--amber);border-color:rgba(230,162,60,.35)}
+.chip.sel{background:var(--panel2);box-shadow:inset 0 0 0 1px currentColor}
+
+/* note quick form */
+.qf{display:flex;flex-direction:column;gap:8px}
+.qf .two{display:flex;gap:7px}
+.emaillist button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;justify-content:flex-start}
+.aviso{display:flex;align-items:flex-start;gap:9px;font-size:12.5px;padding:7px 0;border-bottom:1px solid var(--bord2)}
+.aviso:last-child{border-bottom:none}
+.aviso .svg{width:15px;height:15px;color:var(--amber);margin-top:2px}
+.aviso.over .svg{color:var(--red)}
+.aviso .when{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--sec);white-space:nowrap}
+.aviso .x{color:var(--ter)}
+
+/* ---------- TABLE (histórico) ---------- */
+.filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.filters input,.filters select{width:auto;flex:1;min-width:130px}
+.tablewrap{overflow-x:auto;border:1px solid var(--bord);border-radius:var(--r)}
+table{width:100%;border-collapse:collapse;min-width:560px}
+th{text-align:left;padding:11px 13px;font-size:11px;font-weight:400;color:var(--ter);font-family:var(--mono);letter-spacing:.5px;border-bottom:1px solid var(--bord)}
+td{padding:11px 13px;font-size:13px;border-bottom:1px solid var(--bord2);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--panel)}
+.off{display:inline-flex;align-items:center;gap:7px;cursor:pointer;font-size:12px}
+.off .box{width:17px;height:17px;border-radius:5px;border:1.5px solid var(--ter);display:flex;align-items:center;justify-content:center;color:var(--bg)}
+.off .box .svg{width:11px;height:11px;opacity:0;stroke-width:3}
+.off.on .box{background:var(--teal);border-color:var(--teal)}
+.off.on .box .svg{opacity:1}
+.off.on{color:var(--teal)}
+
+/* ---------- DISCOS ---------- */
+.grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.disk .dtop{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
+.disk .dname{font-family:var(--mono);font-size:14px}
+.disk .free{font-size:11px;color:var(--sec)}
+.disk .projs{font-size:11px;color:var(--ter);margin-bottom:10px}
+.track{height:8px;background:var(--pend);border-radius:4px;overflow:hidden}
+.track .fill{height:100%;border-radius:4px;transition:width .5s ease}
+.disk .num{font-family:var(--mono);font-size:11px;color:var(--sec);margin-top:7px;display:flex;justify-content:space-between}
+.disk .acts{display:flex;gap:8px;margin-top:11px}
+.disk .acts button{font-size:11px;color:var(--ter)}
+.disk .acts button:hover{color:var(--txt)}
+
+/* ---------- NOTAS ---------- */
+.notecard{position:relative}
+.notecard .ntop{display:flex;align-items:center;gap:9px;margin-bottom:6px}
+.notecard .ntop .tipo{font-size:11px;color:var(--sec)}
+.notecard .ntop .tc{font-family:var(--mono);font-size:11px;color:var(--teal)}
+.notecard .ntop .acts{margin-left:auto;display:flex;gap:4px}
+.notecard .ntop .acts button{color:var(--ter);font-size:11px;display:flex;align-items:center;gap:4px;padding:3px 6px;border-radius:6px}
+.notecard .ntop .acts button:hover{color:var(--txt);background:var(--panel2)}
+.notecard .txt{font-size:13.5px}
+
+.empty{text-align:center;color:var(--sec);padding:46px 20px;border:1px dashed var(--bord);border-radius:var(--r)}
+.empty .big{font-size:15px;color:var(--txt);margin-bottom:5px}
+
+/* ---------- MODAL ---------- */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:18px;z-index:50;animation:fade .2s ease}
+.modal{background:var(--app);border:1px solid var(--bord);border-radius:var(--r);width:100%;max-width:440px;max-height:90vh;overflow-y:auto;animation:pop .25s ease}
+@keyframes pop{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:none}}
+.modal .mh{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--bord)}
+.modal .mh h2{font-family:var(--disp);font-size:17px;font-weight:600}
+.modal .mb{padding:18px;display:flex;flex-direction:column;gap:13px}
+.modal label{font-size:12px;color:var(--sec);display:block;margin-bottom:5px}
+.modal .mf{display:flex;gap:9px;justify-content:flex-end;padding:0 18px 18px}
+.x{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:var(--sec)}
+.x:hover{background:var(--panel2);color:var(--txt)}
+
+/* ---------- TOAST ---------- */
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--teal);color:#06201b;font-weight:500;font-size:13px;padding:10px 18px;border-radius:30px;z-index:80;opacity:0;transition:.3s cubic-bezier(.2,.8,.2,1);box-shadow:0 8px 30px rgba(0,0,0,.4)}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+
+#loader{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:90}
+.spin{width:34px;height:34px;border:3px solid var(--pend);border-top-color:var(--teal);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+@media(max-width:760px){
+  .cockpit{grid-template-columns:1fr}
+  main{padding:16px 14px 70px}
+  .rail{width:54px}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<svg style="display:none">
+  <symbol id="i-prod" viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></symbol>
+  <symbol id="i-hist" viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></symbol>
+  <symbol id="i-disk" viewBox="0 0 24 24"><rect x="3" y="14" width="18" height="6" rx="2"/><circle cx="7.5" cy="17" r="1"/><path d="M5 14 8 4h8l3 10"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 9v4"/><path d="M10.3 3.9 1.7 18a2 2 0 0 0 1.7 3h17.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></symbol>
+</svg>
+
+<div id="loader"><div class="spin"></div></div>
+
+<!-- LOGIN -->
+<div id="login" class="hidden">
+  <div class="kick">Editor Ops</div>
+  <div class="brand">Tu sala de producción</div>
+  <p>Seguimiento de piezas, backups, discos y notas de revisión. Todo sincronizado entre tus equipos.</p>
+  <button class="gbtn" id="googleBtn">
+    <svg viewBox="0 0 48 48"><path fill="#4285F4" d="M45 24c0-1.6-.1-3.1-.4-4.5H24v9h11.8c-.5 2.7-2 5-4.4 6.6v5.5h7.1C42.7 36.8 45 30.9 45 24z"/><path fill="#34A853" d="M24 46c5.9 0 10.9-2 14.5-5.4l-7.1-5.5c-2 1.3-4.5 2.1-7.4 2.1-5.7 0-10.5-3.8-12.2-9H4.5v5.7C8.1 41.1 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.8 28.2c-.4-1.3-.7-2.7-.7-4.2s.3-2.9.7-4.2v-5.7H4.5C3 17.1 2 20.4 2 24s1 6.9 2.5 9.9l7.3-5.7z"/><path fill="#EA4335" d="M24 10.7c3.2 0 6.1 1.1 8.4 3.3l6.3-6.3C34.9 4.1 29.9 2 24 2 15.4 2 8.1 6.9 4.5 14.1l7.3 5.7c1.7-5.2 6.5-9.1 12.2-9.1z"/></svg>
+    Entrar con Google
+  </button>
+  <div id="loginErr" style="color:var(--red);font-size:12px;max-width:360px"></div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+  <aside class="rail">
+    <div class="logo">EO</div>
+    <nav>
+      <button class="nav active" data-view="prod"><svg class="svg"><use href="#i-prod"/></svg><span class="tip">Producción</span></button>
+      <button class="nav" data-view="hist"><svg class="svg"><use href="#i-hist"/></svg><span class="tip">Histórico</span></button>
+      <button class="nav" data-view="disk"><svg class="svg"><use href="#i-disk"/></svg><span class="tip">Discos</span></button>
+      <button class="nav" data-view="note"><svg class="svg"><use href="#i-note"/></svg><span class="tip">Notas</span></button>
+    </nav>
+    <div class="spacer"></div>
+    <button class="x" id="logoutBtn" title="Salir"><svg class="svg" style="width:19px;height:19px"><use href="#i-out"/></svg></button>
+    <div class="me" id="meAvatar"></div>
+  </aside>
+  <main id="main"></main>
+</div>
+
+<div id="modalRoot"></div>
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+  collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAvDykRYof9jLPpTmHefgI4npb3e7omJkc",
+  authDomain: "gestor-aj.firebaseapp.com",
+  projectId: "gestor-aj",
+  storageBucket: "gestor-aj.firebasestorage.app",
+  messagingSenderId: "262024069840",
+  appId: "1:262024069840:web:cf73d1a014448e91b754d5"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+let db;
+try {
+  db = initializeFirestore(fbApp, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+} catch(e){ db = initializeFirestore(fbApp, {}); }
+
+/* ---------- constantes ---------- */
+const PASOS = [
+  "Pedir LUTs de color",
+  "Primera edición (corte bruto)",
+  "Revisión de color",
+  "Cambios y OK de edición",
+  "Subtitulado + Sonorización",
+  "Revisión final integrada",
+  "Enviar hilo de máster",
+  "Exportar masters limpios",
+  "Hacer backup en disco propio"
+];
+const GATE_IDX = 4;      // paso 5
+const BACKUP_IDX = 8;    // paso 9
+const CATS = ["Edición","Sonido","Color"];
+const TIPOS = ["Pieza completa","Corta YouTube","RRSS","Otro"];
+
+/* ---------- estado ---------- */
+const state = { piezas:[], historico:[], discos:[], notas:[], listas:[], avisos:[] };
+let current = "prod";
+const $ = s => document.querySelector(s);
+const el = (h)=>{const t=document.createElement("template");t.innerHTML=h.trim();return t.content.firstChild;};
+const esc = s => (s??"").toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtDate = iso => { if(!iso) return ""; const d=new Date(iso); if(isNaN(d)) return esc(iso); return d.toLocaleDateString("es-ES",{day:"2-digit",month:"2-digit"}); };
+const fmtDT = iso => { if(!iso) return ""; const d=new Date(iso); return d.toLocaleDateString("es-ES",{day:"2-digit",month:"2-digit"})+" "+d.toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}); };
+const num = v => { const n=parseFloat(v); return isNaN(n)?0:n; };
+
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),2000); }
+async function copy(text){ try{ await navigator.clipboard.writeText(text); toast("Copiado"); }catch(e){ const ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); toast("Copiado"); } }
+
+/* ---------- firestore helpers ---------- */
+const col = name => collection(db, name);
+const add = (name,data)=>addDoc(col(name),{...data,_ts:serverTimestamp()});
+const upd = (name,id,data)=>updateDoc(doc(db,name,id),data);
+const del = (name,id)=>deleteDoc(doc(db,name,id));
+
+function listen(){
+  onSnapshot(col("piezas"), s=>{ state.piezas=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="prod")render(); });
+  onSnapshot(col("historico"), s=>{ state.historico=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="hist")render(); });
+  onSnapshot(col("discos"), s=>{ state.discos=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="disk"||current==="prod")render(); });
+  onSnapshot(col("notas"), s=>{ state.notas=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="note")render(); });
+  onSnapshot(col("listas"), s=>{ state.listas=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="prod")render(); });
+  onSnapshot(col("avisos"), s=>{ state.avisos=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="prod")render(); checkAvisos(); });
+}
+
+/* ============ AUTH ============ */
+const provider = new GoogleAuthProvider();
+$("#googleBtn").onclick = async ()=>{
+  $("#loginErr").textContent="";
+  try{ await signInWithPopup(auth, provider); }
+  catch(e){ $("#loginErr").textContent = "No se pudo iniciar sesión: "+(e.code||e.message)+". Si estás abriendo el archivo en local, súbelo a GitHub Pages: el login de Google no funciona desde file://."; }
+};
+$("#logoutBtn").onclick = ()=>signOut(auth);
+
+onAuthStateChanged(auth, user=>{
+  $("#loader").classList.add("hidden");
+  if(user){
+    $("#login").classList.add("hidden");
+    $("#app").classList.remove("hidden");
+    requestAnimationFrame(()=>$("#app").classList.add("in"));
+    const av=$("#meAvatar"); av.innerHTML = user.photoURL ? `<img src="${user.photoURL}" alt="">` : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:13px;color:var(--sec)">${(user.displayName||"?")[0]}</div>`;
+    av.title = user.displayName||user.email||"";
+    listen(); render();
+  }else{
+    $("#app").classList.add("hidden"); $("#app").classList.remove("in");
+    $("#login").classList.remove("hidden");
+  }
+});
+
+/* ============ NAV ============ */
+document.querySelectorAll(".nav").forEach(b=>b.onclick=()=>{
+  current=b.dataset.view;
+  document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n===b));
+  render();
+});
+
+/* ============ RENDER ROUTER ============ */
+function render(){
+  const m=$("#main");
+  if(current==="prod") m.innerHTML="", m.appendChild(viewProd());
+  if(current==="hist") m.innerHTML="", m.appendChild(viewHist());
+  if(current==="disk") m.innerHTML="", m.appendChild(viewDisk());
+  if(current==="note") m.innerHTML="", m.appendChild(viewNote());
+}
+
+/* ---------- pieza helpers ---------- */
+const activePiezas = ()=>state.piezas.filter(p=>!p.archived).sort((a,b)=>(a.fechaPub||"").localeCompare(b.fechaPub||""));
+function progress(p){ const pasos=p.pasos||Array(9).fill(false); const sub=p.sub5||{sub:false,sono:false}; pasos[GATE_IDX]=!!(sub.sub&&sub.sono); return pasos; }
+function nextStep(p){ const pasos=progress(p); const i=pasos.findIndex(x=>!x); return i; }
+
+/* ============ VIEW: PRODUCCIÓN ============ */
+function viewProd(){
+  const v=el(`<div class="view"></div>`);
+  const head=el(`<div class="head"><div><div class="kick">Producción actual</div><h1>${activePiezas().length} pieza${activePiezas().length===1?"":"s"} en curso</h1></div></div>`);
+  const addBtn=el(`<button class="btn primary"><svg class="svg"><use href="#i-plus"/></svg>Nueva pieza</button>`);
+  addBtn.onclick=()=>modalPieza();
+  head.appendChild(addBtn); v.appendChild(head);
+
+  const grid=el(`<div class="cockpit"></div>`);
+  const left=el(`<div class="stack"></div>`);
+  const list=activePiezas();
+  if(!list.length){ left.appendChild(el(`<div class="empty"><div class="big">Aún no hay piezas</div>Crea tu primera pieza para empezar el seguimiento.</div>`)); }
+  list.forEach(p=>left.appendChild(pieceCard(p)));
+  grid.appendChild(left);
+  grid.appendChild(sidePanels());
+  v.appendChild(grid);
+  return v;
+}
+
+function pieceCard(p){
+  const pasos=progress(p);
+  const ni=nextStep(p);
+  const isGate = ni===GATE_IDX;
+  const card=el(`<div class="pcard ${isGate?'gate':''}"></div>`);
+  const segs=pasos.map((d,i)=>`<span class="${d?'d':(i===GATE_IDX&&isGate?'g':'')}"></span>`).join("");
+  const statusTxt = ni===-1 ? "Completada" : (isGate?`Pendiente: ${PASOS[GATE_IDX]}`:`${PASOS[ni]}`);
+  const top=el(`<div class="top">
+    <div class="row1"><span class="name">${esc(p.protagonista||"Sin nombre")}</span>
+      ${isGate?`<span class="tag" style="color:var(--amber)">paso 5</span>`:`<span class="tag">${esc(p.proyecto||"")}</span>`}</div>
+    <div class="bar">${segs}</div>
+    <div class="row3"><span class="status ${isGate?'gate':''}">${esc(statusTxt)}</span>
+      <span class="expander">ver pasos <svg class="svg"><use href="#i-chev"/></svg></span></div>
+  </div>`);
+  top.onclick=()=>card.classList.toggle("open");
+  card.appendChild(top);
+
+  const det=el(`<div class="detail"><div class="detail-in"></div></div>`);
+  const din=det.querySelector(".detail-in");
+  PASOS.forEach((label,i)=>{
+    if(i===GATE_IDX){ din.appendChild(gateBox(p)); return; }
+    const done=pasos[i];
+    const meta = p.fechas&&p.fechas[i] ? fmtDate(p.fechas[i]) : (i===ni?"en curso":"");
+    const step=el(`<div class="step ${done?'done':''}">
+      <span class="check ${done?'on':''}"><svg class="svg"><use href="#i-check"/></svg></span>
+      <span class="lbl">${i+1} · ${esc(label)}</span>
+      <span class="meta">${meta}</span>
+      <button class="bell" title="Crear aviso"><svg class="svg"><use href="#i-bell"/></svg></button>
+    </div>`);
+    step.querySelector(".check").onclick=()=>toggleStep(p,i,!done);
+    step.querySelector(".bell").onclick=()=>modalAviso(`${PASOS[i]} · ${p.protagonista}`, p.id);
+    if(i===BACKUP_IDX) din.appendChild(el(`<div style="font-size:11px;color:var(--sec);margin:-2px 0 0 31px">Al marcarlo te pregunto el disco y archivo la pieza en Histórico.</div>`));
+    din.appendChild(step);
+  });
+  // notas + borrar
+  const foot=el(`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:11px;border-top:1px solid var(--bord2)">
+    <span style="font-size:11px;color:var(--sec)">${p.notas?esc(p.notas):'Sin notas'}</span></div>`);
+  const fb=el(`<div style="display:flex;gap:6px"></div>`);
+  const ed=el(`<button class="btn" style="padding:5px 9px"><svg class="svg"><use href="#i-edit"/></svg></button>`); ed.onclick=()=>modalPieza(p);
+  const rm=el(`<button class="btn" style="padding:5px 9px;color:var(--ter)"><svg class="svg"><use href="#i-trash"/></svg></button>`);
+  rm.onclick=()=>{ if(confirm(`¿Eliminar la pieza "${p.protagonista}"?`)) del("piezas",p.id); };
+  fb.appendChild(ed); fb.appendChild(rm); foot.appendChild(fb);
+  din.appendChild(foot);
+  card.appendChild(det);
+  return card;
+}
+
+function gateBox(p){
+  const sub=p.sub5||{sub:false,sono:false};
+  const box=el(`<div class="gatebox">
+    <div class="gt">5 · Subtitulado + Sonorización <em>· externalizado, 2 envíos</em></div>
+    <div class="subrow s1"><span class="mini ${sub.sub?'on':''}"><svg class="svg"><use href="#i-check"/></svg></span> Enviar a subtitulado</div>
+    <div class="subrow s2"><span class="mini ${sub.sono?'on':''}"><svg class="svg"><use href="#i-check"/></svg></span> Enviar a sonorización</div>
+  </div>`);
+  box.querySelector(".s1 .mini").onclick=()=>upd("piezas",p.id,{sub5:{...sub,sub:!sub.sub}});
+  box.querySelector(".s2 .mini").onclick=()=>upd("piezas",p.id,{sub5:{...sub,sono:!sub.sono}});
+  return box;
+}
+
+async function toggleStep(p,i,val){
+  if(i===BACKUP_IDX && val){ modalBackup(p); return; }
+  const pasos=(p.pasos||Array(9).fill(false)).slice(); pasos[i]=val;
+  const fechas=(p.fechas||{}); if(val)fechas[i]=new Date().toISOString(); else delete fechas[i];
+  await upd("piezas",p.id,{pasos,fechas});
+}
+
+function sidePanels(){
+  const s=el(`<div class="stack"></div>`);
+  // Nota rápida
+  const np=el(`<div class="panel"><div class="ph">Nueva nota rápida</div></div>`);
+  const piezaOpts = activePiezas().map(p=>`<option value="${p.id}">${esc(p.protagonista)}</option>`).join("");
+  const qf=el(`<div class="qf">
+    <div class="two">
+      <select class="nf-pieza"><option value="">Pieza…</option>${piezaOpts}</select>
+      <input class="nf-tc mono" style="max-width:108px" placeholder="00:00:00" value="00:00:00">
+    </div>
+    <select class="nf-tipo">${TIPOS.map(t=>`<option>${t}</option>`).join("")}</select>
+    <div class="chips nf-cats">${CATS.map((c,i)=>`<span class="chip ${i===0?'sel':''}" data-c="${c}">${c}</span>`).join("")}</div>
+    <textarea class="nf-txt" rows="2" placeholder="Anotación…"></textarea>
+    <button class="btn primary nf-save"><svg class="svg"><use href="#i-copy"/></svg>Guardar y copiar</button>
+  </div>`);
+  let cat=CATS[0];
+  qf.querySelectorAll(".nf-cats .chip").forEach(ch=>ch.onclick=()=>{cat=ch.dataset.c;qf.querySelectorAll(".chip").forEach(x=>x.classList.toggle("sel",x===ch));});
+  qf.querySelector(".nf-save").onclick=async()=>{
+    const txt=qf.querySelector(".nf-txt").value.trim(); if(!txt){toast("Escribe la anotación");return;}
+    const piezaId=qf.querySelector(".nf-pieza").value;
+    const pieza = state.piezas.find(p=>p.id===piezaId);
+    const note={ texto:txt, categoria:cat, tipo:qf.querySelector(".nf-tipo").value, tc:qf.querySelector(".nf-tc").value, pieza:pieza?pieza.protagonista:"", piezaId };
+    await add("notas",note);
+    copy(formatNote(note));
+    qf.querySelector(".nf-txt").value="";
+  };
+  np.appendChild(qf); s.appendChild(np);
+
+  // Listas de email
+  const le=el(`<div class="panel"><div class="ph">Listas de email <button class="ed"><svg class="svg" style="width:14px;height:14px"><use href="#i-edit"/></svg></button></div></div>`);
+  le.querySelector(".ed").onclick=()=>modalListas();
+  const lb=el(`<div class="emaillist" style="display:flex;flex-direction:column;gap:6px"></div>`);
+  if(!state.listas.length) lb.appendChild(el(`<div style="font-size:12px;color:var(--ter)">Crea grupos de correos para copiarlos de un toque.</div>`));
+  state.listas.forEach(l=>{ const b=el(`<button class="btn"><svg class="svg"><use href="#i-copy"/></svg>${esc(l.nombre)}</button>`); b.onclick=()=>copy((l.emails||"").split(/[\n,;]+/).map(x=>x.trim()).filter(Boolean).join(", ")); lb.appendChild(b); });
+  le.appendChild(lb); s.appendChild(le);
+
+  // Avisos
+  const av=el(`<div class="panel"><div class="ph">Avisos</div></div>`);
+  const ab=el(`<div></div>`);
+  const pend=state.avisos.filter(a=>!a.done).sort((a,b)=>(a.cuando||"").localeCompare(b.cuando||""));
+  if(!pend.length) ab.appendChild(el(`<div style="font-size:12px;color:var(--ter)">Sin avisos pendientes.</div>`));
+  pend.forEach(a=>{
+    const over = a.cuando && new Date(a.cuando)<new Date();
+    const row=el(`<div class="aviso ${over?'over':''}"><svg class="svg"><use href="#i-bell"/></svg><span>${esc(a.texto)}</span><span class="when">${fmtDT(a.cuando)}</span><button class="x" style="width:22px;height:22px"><svg class="svg" style="width:13px;height:13px"><use href="#i-x"/></svg></button></div>`);
+    row.querySelector(".x").onclick=()=>del("avisos",a.id);
+    ab.appendChild(row);
+  });
+  const addAv=el(`<button class="btn" style="width:100%;justify-content:center;margin-top:9px"><svg class="svg"><use href="#i-plus"/></svg>Nuevo aviso</button>`);
+  addAv.onclick=()=>modalAviso();
+  av.appendChild(ab); av.appendChild(addAv); s.appendChild(av);
+  return s;
+}
+
+function formatNote(n){ return `[${n.categoria}] ${n.tipo}\nTC ${n.tc}${n.pieza?` · ${n.pieza}`:""}\n${n.texto}`; }
+
+/* ============ VIEW: HISTÓRICO ============ */
+let histFilter={q:"",proj:"",disk:""};
+function viewHist(){
+  const v=el(`<div class="view"></div>`);
+  v.appendChild(el(`<div class="head"><div><div class="kick">Histórico y backups</div><h1>${state.historico.length} registro${state.historico.length===1?"":"s"}</h1></div></div>`));
+  const f=el(`<div class="filters">
+    <input class="f-q" placeholder="Buscar pieza…" value="${esc(histFilter.q)}">
+    <select class="f-proj"><option value="">Proyecto</option><option ${histFilter.proj==="Global"?"selected":""}>Global</option><option ${histFilter.proj==="AJMX"?"selected":""}>AJMX</option></select>
+    <select class="f-disk"><option value="">Disco</option>${[...new Set(state.historico.map(h=>h.disco).filter(Boolean))].map(d=>`<option ${histFilter.disk===d?"selected":""}>${esc(d)}</option>`).join("")}</select>
+  </div>`);
+  f.querySelector(".f-q").oninput=e=>{histFilter.q=e.target.value;rerenderHist(v);};
+  f.querySelector(".f-proj").onchange=e=>{histFilter.proj=e.target.value;rerenderHist(v);};
+  f.querySelector(".f-disk").onchange=e=>{histFilter.disk=e.target.value;rerenderHist(v);};
+  v.appendChild(f);
+  v.appendChild(histTable());
+  return v;
+}
+function rerenderHist(v){ const old=v.querySelector(".tablewrap")||v.querySelector(".empty"); const n=histTable(); old.replaceWith(n); }
+function histTable(){
+  let rows=state.historico.slice().sort((a,b)=>(b.fechaArchivo||"").localeCompare(a.fechaArchivo||""));
+  if(histFilter.q) rows=rows.filter(r=>(r.pieza||"").toLowerCase().includes(histFilter.q.toLowerCase()));
+  if(histFilter.proj) rows=rows.filter(r=>r.proyecto===histFilter.proj);
+  if(histFilter.disk) rows=rows.filter(r=>r.disco===histFilter.disk);
+  if(!rows.length) return el(`<div class="empty"><div class="big">Nada por aquí</div>Las piezas aparecen al completar el backup, o añade un registro a mano.</div>`);
+  const wrap=el(`<div class="tablewrap"><table><thead><tr><th>PIEZA</th><th>DISCO</th><th>PROYECTO</th><th>PESO</th><th>OFICINA</th><th></th></tr></thead><tbody></tbody></table></div>`);
+  const tb=wrap.querySelector("tbody");
+  rows.forEach(r=>{
+    const tr=el(`<tr>
+      <td>${esc(r.pieza)}</td>
+      <td class="mono" style="color:var(--sec)">${esc(r.disco||"—")}</td>
+      <td><span class="tag">${esc(r.proyecto||"")}</span></td>
+      <td class="mono" style="color:var(--sec)">${r.pesoGB?r.pesoGB+" GB":"—"}</td>
+      <td></td>
+      <td style="text-align:right"><button class="x rm" style="width:26px;height:26px"><svg class="svg" style="width:14px;height:14px"><use href="#i-trash"/></svg></button></td>
+    </tr>`);
+    const offCell=tr.children[4];
+    const off=el(`<span class="off ${r.enviadoOficina?'on':''}"><span class="box"><svg class="svg"><use href="#i-check"/></svg></span>${r.enviadoOficina?fmtDate(r.fechaEnvio):"pendiente"}</span>`);
+    off.onclick=()=>{ const on=!r.enviadoOficina; upd("historico",r.id,{enviadoOficina:on,fechaEnvio:on?new Date().toISOString():null}); };
+    offCell.appendChild(off);
+    tr.querySelector(".rm").onclick=()=>{ if(confirm("¿Eliminar este registro del histórico?")) del("historico",r.id); };
+    tb.appendChild(tr);
+  });
+  return wrap;
+}
+
+/* ============ VIEW: DISCOS ============ */
+function viewDisk(){
+  const v=el(`<div class="view"></div>`);
+  const head=el(`<div class="head"><div><div class="kick">Discos duros</div><h1>Inventario</h1></div></div>`);
+  const addB=el(`<button class="btn primary"><svg class="svg"><use href="#i-plus"/></svg>Añadir disco</button>`); addB.onclick=()=>modalDisco();
+  head.appendChild(addB); v.appendChild(head);
+  if(!state.discos.length){ v.appendChild(el(`<div class="empty"><div class="big">Sin discos todavía</div>Añade tus discos para controlar el espacio libre.</div>`)); return v; }
+  const g=el(`<div class="grid2"></div>`);
+  state.discos.forEach(d=>{
+    const cap=num(d.capacidadGB), used=num(d.usadoGB), free=Math.max(0,cap-used), pct=cap?Math.round(used/cap*100):0;
+    const col = pct>=90?"var(--red)":pct>=70?"var(--amber)":"var(--teal)";
+    const card=el(`<div class="panel disk">
+      <div class="dtop"><span class="dname">${esc(d.nombre)}</span><span class="free">${free} GB libres</span></div>
+      <div class="projs">${esc(d.proyectos||"—")}</div>
+      <div class="track"><div class="fill" style="width:${pct}%;background:${col}"></div></div>
+      <div class="num"><span>${used} / ${cap} GB</span><span>${pct}%</span></div>
+      <div class="acts"><button class="e"><svg class="svg" style="width:13px;height:13px"><use href="#i-edit"/></svg> Editar</button><button class="r"><svg class="svg" style="width:13px;height:13px"><use href="#i-trash"/></svg> Borrar</button></div>
+    </div>`);
+    card.querySelector(".e").onclick=()=>modalDisco(d);
+    card.querySelector(".r").onclick=()=>{ if(confirm(`¿Borrar el disco "${d.nombre}"?`)) del("discos",d.id); };
+    g.appendChild(card);
+  });
+  v.appendChild(g); return v;
+}
+
+/* ============ VIEW: NOTAS ============ */
+let noteFilter="";
+function viewNote(){
+  const v=el(`<div class="view"></div>`);
+  const head=el(`<div class="head"><div><div class="kick">Notas de revisión</div><h1>${state.notas.length} nota${state.notas.length===1?"":"s"}</h1></div></div>`);
+  const ca=el(`<button class="btn primary"><svg class="svg"><use href="#i-copy"/></svg>Copiar todas</button>`);
+  ca.onclick=()=>{ const list=filteredNotes(); if(!list.length){toast("No hay notas");return;} copy(list.map(formatNote).join("\n\n———\n\n")); };
+  head.appendChild(ca); v.appendChild(head);
+  const chips=el(`<div class="chips" style="margin-bottom:14px"><span class="chip ${noteFilter===""?'sel':''}" style="color:var(--txt)" data-c="">Todas</span>${CATS.map(c=>`<span class="chip ${noteFilter===c?'sel':''}" data-c="${c}">${c}</span>`).join("")}</div>`);
+  chips.querySelectorAll(".chip").forEach(ch=>ch.onclick=()=>{noteFilter=ch.dataset.c;render();});
+  v.appendChild(chips);
+  const list=filteredNotes();
+  if(!list.length){ v.appendChild(el(`<div class="empty"><div class="big">Sin notas</div>Apunta notas desde el panel de Producción.</div>`)); return v; }
+  const stack=el(`<div class="stack"></div>`);
+  list.forEach(n=>{
+    const c=CATS.includes(n.categoria)?n.categoria:"Edición";
+    const card=el(`<div class="panel notecard">
+      <div class="ntop"><span class="chip sel" data-c="${c}" style="cursor:default">${esc(n.categoria||"")}</span>
+        <span class="tipo">${esc(n.tipo||"")}${n.pieza?` · ${esc(n.pieza)}`:""}</span>
+        <span class="tc">${esc(n.tc||"")}</span>
+        <span class="acts"><button class="cp"><svg class="svg"><use href="#i-copy"/></svg>copiar</button><button class="rm"><svg class="svg"><use href="#i-trash"/></svg></button></span></div>
+      <div class="txt">${esc(n.texto||"")}</div></div>`);
+    card.querySelector(".cp").onclick=()=>copy(formatNote(n));
+    card.querySelector(".rm").onclick=()=>del("notas",n.id);
+    stack.appendChild(card);
+  });
+  v.appendChild(stack); return v;
+}
+function filteredNotes(){ let l=state.notas.slice().reverse(); if(noteFilter) l=l.filter(n=>n.categoria===noteFilter); return l; }
+
+/* ============ MODALES ============ */
+function openModal(node){ const root=$("#modalRoot"); const scrim=el(`<div class="scrim"></div>`); scrim.appendChild(node); scrim.onclick=e=>{if(e.target===scrim)scrim.remove();}; root.appendChild(scrim); return scrim; }
+function closeModal(n){ n.closest(".scrim").remove(); }
+
+function modalPieza(p){
+  const m=el(`<div class="modal"><div class="mh"><h2>${p?"Editar pieza":"Nueva pieza"}</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
+    <div class="mb">
+      <div><label>Protagonista</label><input class="f-name" value="${p?esc(p.protagonista):''}"></div>
+      <div><label>Proyecto</label><select class="f-proj"><option ${p&&p.proyecto==="Global"?"selected":""}>Global</option><option ${p&&p.proyecto==="AJMX"?"selected":""}>AJMX</option></select></div>
+      <div><label>Fecha de publicación</label><input type="date" class="f-date" value="${p?esc(p.fechaPub||''):''}"></div>
+      <div><label>Notas extra</label><textarea class="f-notas" rows="2">${p?esc(p.notas||''):''}</textarea></div>
+    </div>
+    <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">${p?"Guardar":"Crear"}</button></div></div>`);
+  m.querySelector(".x").onclick=()=>closeModal(m);
+  m.querySelector(".cancel").onclick=()=>closeModal(m);
+  m.querySelector(".save").onclick=async()=>{
+    const data={ protagonista:m.querySelector(".f-name").value.trim(), proyecto:m.querySelector(".f-proj").value, fechaPub:m.querySelector(".f-date").value, notas:m.querySelector(".f-notas").value.trim() };
+    if(!data.protagonista){toast("Pon un nombre");return;}
+    if(p) await upd("piezas",p.id,data);
+    else await add("piezas",{...data,pasos:Array(9).fill(false),sub5:{sub:false,sono:false},fechas:{},archived:false});
+    closeModal(m); toast(p?"Pieza actualizada":"Pieza creada");
+  };
+  openModal(m);
+}
+
+function modalBackup(p){
+  const opts=state.discos.map(d=>`<option value="${d.id}">${esc(d.nombre)} (${Math.max(0,num(d.capacidadGB)-num(d.usadoGB))} GB libres)</option>`).join("");
+  const m=el(`<div class="modal"><div class="mh"><h2>Backup de "${esc(p.protagonista)}"</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
+    <div class="mb">
+      <div style="font-size:12.5px;color:var(--sec)">Al confirmar, archivo la pieza en el Histórico y descuento el peso del disco.</div>
+      <div><label>¿En qué disco hiciste el backup?</label><select class="f-disk"><option value="">Selecciona…</option>${opts}</select>${state.discos.length?'':'<div style="font-size:11px;color:var(--ter);margin-top:5px">No tienes discos aún; puedes dejarlo vacío y añadirlos luego.</div>'}</div>
+      <div><label>Peso del backup (GB)</label><input type="number" class="f-peso" placeholder="ej. 248"></div>
+    </div>
+    <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">Confirmar backup</button></div></div>`);
+  m.querySelector(".x").onclick=()=>closeModal(m);
+  m.querySelector(".cancel").onclick=()=>closeModal(m);
+  m.querySelector(".save").onclick=async()=>{
+    const diskId=m.querySelector(".f-disk").value;
+    const peso=num(m.querySelector(".f-peso").value);
+    const disk=state.discos.find(d=>d.id===diskId);
+    const pasos=progress(p).slice(); pasos[BACKUP_IDX]=true;
+    const fechas=p.fechas||{}; fechas[BACKUP_IDX]=new Date().toISOString();
+    await upd("piezas",p.id,{pasos,fechas,archived:true});
+    await add("historico",{ pieza:p.protagonista, proyecto:p.proyecto, disco:disk?disk.nombre:"", pesoGB:peso||null, enviadoOficina:false, fechaEnvio:null, fechaArchivo:new Date().toISOString(), piezaId:p.id });
+    if(disk && peso) await upd("discos",disk.id,{usadoGB:num(disk.usadoGB)+peso});
+    closeModal(m); toast("Backup hecho · archivada en Histórico");
+  };
+  openModal(m);
+}
+
+function modalDisco(d){
+  const m=el(`<div class="modal"><div class="mh"><h2>${d?"Editar disco":"Nuevo disco"}</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
+    <div class="mb">
+      <div><label>ID / Nombre</label><input class="f-name" value="${d?esc(d.nombre):''}" placeholder="LACIE_04"></div>
+      <div><label>Proyectos almacenados</label><input class="f-proj" value="${d?esc(d.proyectos||''):''}" placeholder="Global, AJMX"></div>
+      <div style="display:flex;gap:10px">
+        <div style="flex:1"><label>Capacidad total (GB)</label><input type="number" class="f-cap" value="${d?num(d.capacidadGB):''}"></div>
+        <div style="flex:1"><label>Usado (GB)</label><input type="number" class="f-used" value="${d?num(d.usadoGB):''}"></div>
+      </div>
+    </div>
+    <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">${d?"Guardar":"Añadir"}</button></div></div>`);
+  m.querySelector(".x").onclick=()=>closeModal(m);
+  m.querySelector(".cancel").onclick=()=>closeModal(m);
+  m.querySelector(".save").onclick=async()=>{
+    const data={ nombre:m.querySelector(".f-name").value.trim(), proyectos:m.querySelector(".f-proj").value.trim(), capacidadGB:num(m.querySelector(".f-cap").value), usadoGB:num(m.querySelector(".f-used").value) };
+    if(!data.nombre){toast("Pon un nombre");return;}
+    if(d) await upd("discos",d.id,data); else await add("discos",data);
+    closeModal(m); toast(d?"Disco actualizado":"Disco añadido");
+  };
+  openModal(m);
+}
+
+function modalAviso(prefill="",piezaId=""){
+  const def=new Date(Date.now()+3600000).toISOString().slice(0,16);
+  const m=el(`<div class="modal"><div class="mh"><h2>Nuevo aviso</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
+    <div class="mb">
+      <div><label>¿De qué te aviso?</label><input class="f-txt" value="${esc(prefill)}" placeholder="ej. Recordar envío de subs"></div>
+      <div><label>Cuándo</label><input type="datetime-local" class="f-when" value="${def}"></div>
+      <div style="font-size:11px;color:var(--ter)">El aviso aparece en el panel y, si lo permites, te avisa el navegador mientras la app esté abierta.</div>
+    </div>
+    <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">Crear aviso</button></div></div>`);
+  m.querySelector(".x").onclick=()=>closeModal(m);
+  m.querySelector(".cancel").onclick=()=>closeModal(m);
+  m.querySelector(".save").onclick=async()=>{
+    const txt=m.querySelector(".f-txt").value.trim(); if(!txt){toast("Escribe el aviso");return;}
+    if("Notification" in window && Notification.permission==="default") Notification.requestPermission();
+    await add("avisos",{ texto:txt, cuando:new Date(m.querySelector(".f-when").value).toISOString(), piezaId, done:false, notified:false });
+    closeModal(m); toast("Aviso creado");
+  };
+  openModal(m);
+}
+
+function modalListas(){
+  const m=el(`<div class="modal"><div class="mh"><h2>Listas de email</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div><div class="mb body"></div>
+    <div class="mf"><button class="btn primary addnew"><svg class="svg"><use href="#i-plus"/></svg>Añadir lista</button></div></div>`);
+  const body=m.querySelector(".body");
+  function row(l){
+    const r=el(`<div style="border:1px solid var(--bord);border-radius:var(--r-sm);padding:11px">
+      <input class="ln" placeholder="Nombre del grupo" value="${l?esc(l.nombre):''}" style="margin-bottom:7px">
+      <textarea class="le" rows="2" placeholder="emails separados por comas">${l?esc(l.emails||''):''}</textarea>
+      <div style="display:flex;justify-content:flex-end;gap:7px;margin-top:7px">
+        ${l?'<button class="btn del" style="color:var(--ter)"><svg class="svg"><use href="#i-trash"/></svg></button>':''}
+        <button class="btn primary sv">Guardar</button></div></div>`);
+    r.querySelector(".sv").onclick=async()=>{ const data={nombre:r.querySelector(".ln").value.trim(),emails:r.querySelector(".le").value.trim()}; if(!data.nombre){toast("Pon un nombre");return;} if(l)await upd("listas",l.id,data); else{await add("listas",data); r.remove();} toast("Guardado"); };
+    if(l) r.querySelector(".del").onclick=()=>{ if(confirm("¿Borrar esta lista?")){ del("listas",l.id); r.remove(); } };
+    return r;
+  }
+  state.listas.forEach(l=>body.appendChild(row(l)));
+  if(!state.listas.length) body.appendChild(el(`<div style="font-size:12px;color:var(--ter)">Crea grupos como "Equipo de sonido" o "Revisores oficina".</div>`));
+  m.querySelector(".addnew").onclick=()=>body.appendChild(row(null));
+  m.querySelector(".x").onclick=()=>closeModal(m);
+  openModal(m);
+}
+
+/* ---------- avisos: notificación mientras la app está abierta ---------- */
+function checkAvisos(){
+  if(!("Notification" in window) || Notification.permission!=="granted") return;
+  const now=Date.now();
+  state.avisos.forEach(a=>{
+    if(a.done||a.notified) return;
+    if(a.cuando && new Date(a.cuando).getTime()<=now){
+      new Notification("Editor Ops",{body:a.texto});
+      upd("avisos",a.id,{notified:true});
+    }
+  });
+}
+setInterval(checkAvisos,60000);
+</script>
+</body>
+</html>
