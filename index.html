@@ -154,6 +154,8 @@ h1{font-family:var(--disp);font-size:22px;font-weight:600;letter-spacing:-.3px}
 .tablewrap{overflow-x:auto;border:1px solid var(--bord);border-radius:var(--r)}
 table{width:100%;border-collapse:collapse;min-width:560px}
 th{text-align:left;padding:11px 13px;font-size:11px;font-weight:400;color:var(--ter);font-family:var(--mono);letter-spacing:.5px;border-bottom:1px solid var(--bord)}
+th.sortable{cursor:pointer;user-select:none;transition:color .15s ease}
+th.sortable:hover{color:var(--txt)}
 td{padding:11px 13px;font-size:13px;border-bottom:1px solid var(--bord2);vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:var(--panel)}
@@ -602,50 +604,104 @@ function addNoteForm(p){
   box.appendChild(qf); return box;
 }
 
-/* ============ VIEW: HISTÓRICO ============ */
+/* ============ VIEW: BACKUP ============ */
 let histFilter={q:"",proj:"",disk:""};
+let histSort={col:"fechaBackup",dir:"desc"};
 function viewHist(){
   const v=el(`<div class="view"></div>`);
   v.appendChild(el(`<div class="head"><div><div class="kick">Backup</div><h1>${state.historico.length} registro${state.historico.length===1?"":"s"}</h1></div></div>`));
   const f=el(`<div class="filters">
     <input class="f-q" placeholder="Buscar pieza…" value="${esc(histFilter.q)}">
     <select class="f-proj"><option value="">Proyecto</option><option ${histFilter.proj==="Global"?"selected":""}>Global</option><option ${histFilter.proj==="AJMX"?"selected":""}>AJMX</option></select>
-    <select class="f-disk"><option value="">Disco</option>${[...new Set(state.historico.map(h=>h.disco).filter(Boolean))].map(d=>`<option ${histFilter.disk===d?"selected":""}>${esc(d)}</option>`).join("")}</select>
+    <select class="f-disk"><option value="">Disco</option>${[...new Set(state.historico.map(h=>h.disco).filter(Boolean))].sort().map(d=>`<option ${histFilter.disk===d?"selected":""}>${esc(d)}</option>`).join("")}</select>
   </div>`);
-  f.querySelector(".f-q").oninput=e=>{histFilter.q=e.target.value;rerenderHist(v);};
-  f.querySelector(".f-proj").onchange=e=>{histFilter.proj=e.target.value;rerenderHist(v);};
-  f.querySelector(".f-disk").onchange=e=>{histFilter.disk=e.target.value;rerenderHist(v);};
+  f.querySelector(".f-q").oninput=e=>{histFilter.q=e.target.value;rerenderHist();};
+  f.querySelector(".f-proj").onchange=e=>{histFilter.proj=e.target.value;rerenderHist();};
+  f.querySelector(".f-disk").onchange=e=>{histFilter.disk=e.target.value;rerenderHist();};
   v.appendChild(f);
   v.appendChild(histTable());
   return v;
 }
-function rerenderHist(v){ const old=v.querySelector(".tablewrap")||v.querySelector(".empty"); const n=histTable(); old.replaceWith(n); }
+function rerenderHist(){ const old=document.querySelector("#main .tablewrap")||document.querySelector("#main .empty"); if(old) old.replaceWith(histTable()); }
+function setSort(col){ if(histSort.col===col){histSort.dir=histSort.dir==="asc"?"desc":"asc";}else{histSort.col=col;histSort.dir=(col==="pesoGB"||col==="fechaBackup")?"desc":"asc";} rerenderHist(); }
+function sortHist(rows){
+  const {col,dir}=histSort, s=dir==="asc"?1:-1;
+  return rows.sort((a,b)=>{
+    if(col==="pesoGB"){ const an=a.pesoGB,bn=b.pesoGB; if(an==null&&bn==null)return 0; if(an==null)return 1; if(bn==null)return -1; return (an-bn)*s; }
+    if(col==="fechaBackup"){ const av=a.fechaBackup||"",bv=b.fechaBackup||""; if(!av&&!bv)return 0; if(!av)return 1; if(!bv)return -1; return av.localeCompare(bv)*s; }
+    return (a[col]||"").toString().localeCompare((b[col]||"").toString(),"es",{sensitivity:"base"})*s;
+  });
+}
 function histTable(){
-  let rows=state.historico.slice().sort((a,b)=>(b.fechaArchivo||"").localeCompare(a.fechaArchivo||""));
+  let rows=state.historico.slice();
   if(histFilter.q) rows=rows.filter(r=>(r.pieza||"").toLowerCase().includes(histFilter.q.toLowerCase()));
   if(histFilter.proj) rows=rows.filter(r=>r.proyecto===histFilter.proj);
   if(histFilter.disk) rows=rows.filter(r=>r.disco===histFilter.disk);
-  if(!rows.length) return el(`<div class="empty"><div class="big">Nada por aquí</div>Las piezas aparecen al completar el backup, o añade un registro a mano.</div>`);
-  const wrap=el(`<div class="tablewrap"><table><thead><tr><th>PIEZA</th><th>DISCO</th><th>PROYECTO</th><th>PESO</th><th>OFICINA</th><th></th></tr></thead><tbody></tbody></table></div>`);
+  rows=sortHist(rows);
+  if(!rows.length) return el(`<div class="empty"><div class="big">Nada por aquí</div>Las piezas aparecen al completar el backup de un proyecto.</div>`);
+  const arrow=c=> histSort.col===c ? (histSort.dir==="asc"?" ↑":" ↓") : "";
+  const th=(c,label)=>`<th class="sortable" data-col="${c}">${label}${arrow(c)}</th>`;
+  const wrap=el(`<div class="tablewrap"><table><thead><tr>${th("pieza","PIEZA")}${th("disco","DISCO")}${th("proyecto","PROYECTO")}${th("pesoGB","PESO")}${th("fechaBackup","BACKUP")}<th>ENVIADA</th><th></th></tr></thead><tbody></tbody></table></div>`);
+  wrap.querySelectorAll("th.sortable").forEach(h=>h.onclick=()=>setSort(h.dataset.col));
   const tb=wrap.querySelector("tbody");
   rows.forEach(r=>{
     const tr=el(`<tr>
       <td>${esc(r.pieza)}</td>
       <td class="mono" style="color:var(--sec)">${esc(r.disco||"—")}</td>
       <td><span class="tag">${esc(r.proyecto||"")}</span></td>
-      <td class="mono" style="color:var(--sec)">${r.pesoGB?r.pesoGB+" GB":"—"}</td>
+      <td class="mono" style="color:var(--sec)">${r.pesoGB!=null?r.pesoGB+" GB":"—"}</td>
+      <td class="mono fb" style="color:var(--sec);cursor:pointer">${r.fechaBackup?fmtDate(r.fechaBackup):'<span style="color:var(--ter)">— añadir</span>'}</td>
       <td></td>
-      <td style="text-align:right"><button class="x rm" style="width:26px;height:26px"><svg class="svg" style="width:14px;height:14px"><use href="#i-trash"/></svg></button></td>
+      <td style="text-align:right;white-space:nowrap"><button class="x ed" style="width:26px;height:26px"><svg class="svg" style="width:14px;height:14px"><use href="#i-edit"/></svg></button><button class="x rm" style="width:26px;height:26px"><svg class="svg" style="width:14px;height:14px"><use href="#i-trash"/></svg></button></td>
     </tr>`);
-    const offCell=tr.children[4];
-    const off=el(`<span class="off ${r.enviadoOficina?'on':''}"><span class="box"><svg class="svg"><use href="#i-check"/></svg></span>${r.enviadoOficina?fmtDate(r.fechaEnvio):"pendiente"}</span>`);
-    off.onclick=()=>{ const on=!r.enviadoOficina; upd("historico",r.id,{enviadoOficina:on,fechaEnvio:on?new Date().toISOString():null}); };
+    const offCell=tr.children[5];
+    const off=el(`<span class="off ${r.enviadoOficina?'on':''}"><span class="box"><svg class="svg"><use href="#i-check"/></svg></span>${r.enviadoOficina?(r.fechaEnvio?fmtDate(r.fechaEnvio):"sí"):"pendiente"}</span>`);
+    off.onclick=()=>{ const on=!r.enviadoOficina; upd("historico",r.id,{enviadoOficina:on,fechaEnvio:on?(r.fechaEnvio||new Date().toISOString()):null}); };
     offCell.appendChild(off);
-    tr.querySelector(".rm").onclick=()=>{ if(confirm("¿Eliminar este registro del histórico?")) del("historico",r.id); };
+    tr.querySelector(".fb").onclick=()=>modalHistorico(r);
+    tr.querySelector(".ed").onclick=()=>modalHistorico(r);
+    tr.querySelector(".rm").onclick=()=>{ if(confirm("¿Eliminar este registro de Backup?")) del("historico",r.id); };
     tb.appendChild(tr);
   });
   return wrap;
 }
+function modalHistorico(r){
+  const discoOpts=[...new Set([...state.discos.map(d=>d.nombre),...state.historico.map(h=>h.disco)].filter(Boolean))].map(d=>`<option value="${esc(d)}">`).join("");
+  const m=el(`<div class="modal"><div class="mh"><h2>Editar registro</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
+    <div class="mb">
+      <div><label>Pieza</label><input class="f-pieza" value="${esc(r.pieza||'')}"></div>
+      <div style="display:flex;gap:10px">
+        <div style="flex:1"><label>Proyecto</label><select class="f-proj"><option ${r.proyecto==="Global"?"selected":""}>Global</option><option ${r.proyecto==="AJMX"?"selected":""}>AJMX</option></select></div>
+        <div style="flex:1"><label>Disco</label><input class="f-disco" list="discoList" value="${esc(r.disco||'')}"><datalist id="discoList">${discoOpts}</datalist></div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <div style="flex:1"><label>Peso (GB)</label><input type="number" class="f-peso" value="${r.pesoGB!=null?r.pesoGB:''}"></div>
+        <div style="flex:1"><label>Fecha de backup</label><input type="date" class="f-fb" value="${r.fechaBackup?r.fechaBackup.slice(0,10):''}"></div>
+      </div>
+      <div style="border-top:1px solid var(--bord);padding-top:13px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:9px"><input type="checkbox" class="f-env" ${r.enviadoOficina?"checked":""} style="width:auto"> Enviada a oficina</label>
+        <div><label>Fecha de envío</label><input type="date" class="f-fe" value="${r.fechaEnvio?r.fechaEnvio.slice(0,10):''}"></div>
+      </div>
+    </div>
+    <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">Guardar</button></div></div>`);
+  m.querySelector(".x").onclick=()=>closeModal(m);
+  m.querySelector(".cancel").onclick=()=>closeModal(m);
+  m.querySelector(".save").onclick=async()=>{
+    const env=m.querySelector(".f-env").checked, fe=m.querySelector(".f-fe").value, fb=m.querySelector(".f-fb").value, pv=m.querySelector(".f-peso").value;
+    await upd("historico",r.id,{
+      pieza:m.querySelector(".f-pieza").value.trim(),
+      proyecto:m.querySelector(".f-proj").value,
+      disco:m.querySelector(".f-disco").value.trim(),
+      pesoGB: pv!=="" ? num(pv) : null,
+      fechaBackup: fb ? new Date(fb).toISOString() : null,
+      enviadoOficina: env,
+      fechaEnvio: env ? (fe ? new Date(fe).toISOString() : (r.fechaEnvio||null)) : null
+    });
+    closeModal(m); toast("Registro actualizado");
+  };
+  openModal(m);
+}
+
 
 /* ============ VIEW: DISCOS ============ */
 function viewDisk(){
@@ -745,7 +801,7 @@ function modalBackup(p){
     const pasos=progress(p).slice(); pasos[BACKUP_IDX]=true;
     const fechas=p.fechas||{}; fechas[BACKUP_IDX]=new Date().toISOString();
     await upd("piezas",p.id,{pasos,fechas,archived:true});
-    await add("historico",{ pieza:p.protagonista, proyecto:p.proyecto, disco:disk?disk.nombre:"", pesoGB:peso||null, enviadoOficina:false, fechaEnvio:null, fechaArchivo:new Date().toISOString(), piezaId:p.id });
+    await add("historico",{ pieza:p.protagonista, proyecto:p.proyecto, disco:disk?disk.nombre:"", pesoGB:peso||null, enviadoOficina:false, fechaEnvio:null, fechaBackup:new Date().toISOString(), fechaArchivo:new Date().toISOString(), piezaId:p.id });
     if(disk && peso) await upd("discos",disk.id,{usadoGB:num(disk.usadoGB)+peso});
     closeModal(m); toast("Backup hecho · guardado en la pestaña Backup"); if(current==="detail") goProd();
   };
