@@ -245,7 +245,7 @@ tr:hover td{background:var(--panel)}
     <div class="logo">EO</div>
     <nav>
       <button class="nav active" data-view="prod"><svg class="svg"><use href="#i-prod"/></svg><span class="tip">Producción</span></button>
-      <button class="nav" data-view="hist"><svg class="svg"><use href="#i-hist"/></svg><span class="tip">Histórico</span></button>
+      <button class="nav" data-view="hist"><svg class="svg"><use href="#i-hist"/></svg><span class="tip">Backup</span></button>
       <button class="nav" data-view="disk"><svg class="svg"><use href="#i-disk"/></svg><span class="tip">Discos</span></button>
       <button class="nav" data-view="note"><svg class="svg"><use href="#i-note"/></svg><span class="tip">Notas</span></button>
     </nav>
@@ -286,22 +286,23 @@ try {
 /* ---------- constantes ---------- */
 const PASOS = [
   "Pedir LUTs de color",
-  "Primera edición (corte bruto)",
+  "Primer edit",
   "Revisión de color",
   "Cambios y OK de edición",
   "Subtitulado + Sonorización",
-  "Revisión final integrada",
+  "Enviar revisión final",
   "Enviar hilo de máster",
+  "Vídeos para redes",
   "Exportar masters limpios",
-  "Hacer backup en disco propio"
+  "Hacer backup"
 ];
-const GATE_IDX = 4;      // paso 5
-const BACKUP_IDX = 8;    // paso 9
+const GATE_IDX = 4;       // paso 5
+const BACKUP_IDX = 9;     // paso 10 (último)
 const CATS = ["Edición","Sonido","Color"];
 const TIPOS = ["Pieza completa","Corta YouTube","RRSS","Otro"];
 
 /* ---------- estado ---------- */
-const state = { piezas:[], historico:[], discos:[], notas:[], listas:[], avisos:[] };
+const state = { piezas:[], historico:[], discos:[], notas:[], listas:[], avisos:[], expanded:new Set() };
 let current = "prod";
 const $ = s => document.querySelector(s);
 const el = (h)=>{const t=document.createElement("template");t.innerHTML=h.trim();return t.content.firstChild;};
@@ -370,7 +371,7 @@ function render(){
 
 /* ---------- pieza helpers ---------- */
 const activePiezas = ()=>state.piezas.filter(p=>!p.archived).sort((a,b)=>(a.fechaPub||"").localeCompare(b.fechaPub||""));
-function progress(p){ const pasos=p.pasos||Array(9).fill(false); const sub=p.sub5||{sub:false,sono:false}; pasos[GATE_IDX]=!!(sub.sub&&sub.sono); return pasos; }
+function progress(p){ const pasos=(p.pasos||[]).slice(); while(pasos.length<PASOS.length) pasos.push(false); const sub=p.sub5||{sub:false,sono:false}; pasos[GATE_IDX]=!!(sub.sub&&sub.sono); return pasos; }
 function nextStep(p){ const pasos=progress(p); const i=pasos.findIndex(x=>!x); return i; }
 
 /* ============ VIEW: PRODUCCIÓN ============ */
@@ -396,7 +397,7 @@ function pieceCard(p){
   const pasos=progress(p);
   const ni=nextStep(p);
   const isGate = ni===GATE_IDX;
-  const card=el(`<div class="pcard ${isGate?'gate':''}"></div>`);
+  const card=el(`<div class="pcard ${isGate?'gate':''} ${state.expanded.has(p.id)?'open':''}"></div>`);
   const segs=pasos.map((d,i)=>`<span class="${d?'d':(i===GATE_IDX&&isGate?'g':'')}"></span>`).join("");
   const statusTxt = ni===-1 ? "Completada" : (isGate?`Pendiente: ${PASOS[GATE_IDX]}`:`${PASOS[ni]}`);
   const top=el(`<div class="top">
@@ -406,7 +407,7 @@ function pieceCard(p){
     <div class="row3"><span class="status ${isGate?'gate':''}">${esc(statusTxt)}</span>
       <span class="expander">ver pasos <svg class="svg"><use href="#i-chev"/></svg></span></div>
   </div>`);
-  top.onclick=()=>card.classList.toggle("open");
+  top.onclick=()=>{ if(state.expanded.has(p.id)){state.expanded.delete(p.id);card.classList.remove("open");}else{state.expanded.add(p.id);card.classList.add("open");} };
   card.appendChild(top);
 
   const det=el(`<div class="detail"><div class="detail-in"></div></div>`);
@@ -423,7 +424,7 @@ function pieceCard(p){
     </div>`);
     step.querySelector(".check").onclick=()=>toggleStep(p,i,!done);
     step.querySelector(".bell").onclick=()=>modalAviso(`${PASOS[i]} · ${p.protagonista}`, p.id);
-    if(i===BACKUP_IDX) din.appendChild(el(`<div style="font-size:11px;color:var(--sec);margin:-2px 0 0 31px">Al marcarlo te pregunto el disco y archivo la pieza en Histórico.</div>`));
+    if(i===BACKUP_IDX) din.appendChild(el(`<div style="font-size:11px;color:var(--sec);margin:-2px 0 0 31px">Al marcarlo te pregunto el disco y archivo la pieza en Backup.</div>`));
     din.appendChild(step);
   });
   // notas + borrar
@@ -453,7 +454,7 @@ function gateBox(p){
 
 async function toggleStep(p,i,val){
   if(i===BACKUP_IDX && val){ modalBackup(p); return; }
-  const pasos=(p.pasos||Array(9).fill(false)).slice(); pasos[i]=val;
+  const pasos=progress(p); pasos[i]=val;
   const fechas=(p.fechas||{}); if(val)fechas[i]=new Date().toISOString(); else delete fechas[i];
   await upd("piezas",p.id,{pasos,fechas});
 }
@@ -517,7 +518,7 @@ function formatNote(n){ return `[${n.categoria}] ${n.tipo}\nTC ${n.tc}${n.pieza?
 let histFilter={q:"",proj:"",disk:""};
 function viewHist(){
   const v=el(`<div class="view"></div>`);
-  v.appendChild(el(`<div class="head"><div><div class="kick">Histórico y backups</div><h1>${state.historico.length} registro${state.historico.length===1?"":"s"}</h1></div></div>`));
+  v.appendChild(el(`<div class="head"><div><div class="kick">Backup</div><h1>${state.historico.length} registro${state.historico.length===1?"":"s"}</h1></div></div>`));
   const f=el(`<div class="filters">
     <input class="f-q" placeholder="Buscar pieza…" value="${esc(histFilter.q)}">
     <select class="f-proj"><option value="">Proyecto</option><option ${histFilter.proj==="Global"?"selected":""}>Global</option><option ${histFilter.proj==="AJMX"?"selected":""}>AJMX</option></select>
@@ -632,7 +633,7 @@ function modalPieza(p){
     const data={ protagonista:m.querySelector(".f-name").value.trim(), proyecto:m.querySelector(".f-proj").value, fechaPub:m.querySelector(".f-date").value, notas:m.querySelector(".f-notas").value.trim() };
     if(!data.protagonista){toast("Pon un nombre");return;}
     if(p) await upd("piezas",p.id,data);
-    else await add("piezas",{...data,pasos:Array(9).fill(false),sub5:{sub:false,sono:false},fechas:{},archived:false});
+    else await add("piezas",{...data,pasos:Array(PASOS.length).fill(false),sub5:{sub:false,sono:false},fechas:{},archived:false});
     closeModal(m); toast(p?"Pieza actualizada":"Pieza creada");
   };
   openModal(m);
@@ -642,7 +643,7 @@ function modalBackup(p){
   const opts=state.discos.map(d=>`<option value="${d.id}">${esc(d.nombre)} (${Math.max(0,num(d.capacidadGB)-num(d.usadoGB))} GB libres)</option>`).join("");
   const m=el(`<div class="modal"><div class="mh"><h2>Backup de "${esc(p.protagonista)}"</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
     <div class="mb">
-      <div style="font-size:12.5px;color:var(--sec)">Al confirmar, archivo la pieza en el Histórico y descuento el peso del disco.</div>
+      <div style="font-size:12.5px;color:var(--sec)">Al confirmar, archivo la pieza en Backup y descuento el peso del disco.</div>
       <div><label>¿En qué disco hiciste el backup?</label><select class="f-disk"><option value="">Selecciona…</option>${opts}</select>${state.discos.length?'':'<div style="font-size:11px;color:var(--ter);margin-top:5px">No tienes discos aún; puedes dejarlo vacío y añadirlos luego.</div>'}</div>
       <div><label>Peso del backup (GB)</label><input type="number" class="f-peso" placeholder="ej. 248"></div>
     </div>
@@ -658,7 +659,7 @@ function modalBackup(p){
     await upd("piezas",p.id,{pasos,fechas,archived:true});
     await add("historico",{ pieza:p.protagonista, proyecto:p.proyecto, disco:disk?disk.nombre:"", pesoGB:peso||null, enviadoOficina:false, fechaEnvio:null, fechaArchivo:new Date().toISOString(), piezaId:p.id });
     if(disk && peso) await upd("discos",disk.id,{usadoGB:num(disk.usadoGB)+peso});
-    closeModal(m); toast("Backup hecho · archivada en Histórico");
+    closeModal(m); toast("Backup hecho · guardado en la pestaña Backup");
   };
   openModal(m);
 }
