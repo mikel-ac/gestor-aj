@@ -47,6 +47,7 @@ input[type=date]::-webkit-calendar-picker-indicator,input[type=datetime-local]::
 .chk{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--ter);display:inline-flex;align-items:center;justify-content:center;color:var(--bg);cursor:pointer;flex:none;transition:.15s ease}
 .chk .svg{width:11px;height:11px;opacity:0;stroke-width:3;transition:.15s ease}
 .chk.on{background:var(--teal);border-color:var(--teal)}
+.chk.pend.on{background:var(--red);border-color:var(--red)}
 .chk.on .svg{opacity:1}
 .filters .dd{flex:1;min-width:140px}
 /* custom date picker */
@@ -103,6 +104,7 @@ input[type=date]::-webkit-calendar-picker-indicator,input[type=datetime-local]::
 .rail .spacer{margin-top:auto}
 .rail .me{width:34px;height:34px;border-radius:50%;background:var(--panel2);overflow:hidden;border:1px solid var(--bord);margin-top:10px}
 .rail .me img{width:100%;height:100%;object-fit:cover}
+#setBtn.active{color:var(--teal)}
 
 main{flex:1;overflow-y:auto;padding:22px 26px 60px}
 .view{animation:fade .35s ease}
@@ -173,7 +175,7 @@ h1{font-family:var(--disp);font-size:22px;font-weight:600;letter-spacing:-.3px}
 .chip[data-c="Sonido"]{color:var(--pur);border-color:rgba(155,140,240,.35)}
 .chip[data-c="Color"]{color:var(--amber);border-color:rgba(230,162,60,.35)}
 .chip[data-c="Contenido"]{color:var(--blue);border-color:rgba(91,157,227,.35)}
-.entry{background:var(--panel);border:1px solid var(--bord);border-radius:var(--r);padding:12px 14px;cursor:pointer;transition:transform .12s ease,border-color .2s ease}
+.entry{background:var(--panel);border:1px solid var(--bord);border-radius:var(--r);padding:18px 20px;cursor:pointer;transition:transform .12s ease,border-color .2s ease}
 .entry:hover{transform:translateY(-1px);border-color:var(--sec)}
 .entry.gate{border-left:3px solid var(--amber)}
 .alertrow{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--bord2);font-size:12.5px}
@@ -287,6 +289,9 @@ tr:hover td{background:var(--panel)}
   <symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
   <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
   <symbol id="i-out" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+  <symbol id="i-cut" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
 </svg>
 
 <div id="loader"><div class="spin"></div></div>
@@ -311,8 +316,10 @@ tr:hover td{background:var(--panel)}
       <button class="nav active" data-view="prod"><svg class="svg"><use href="#i-prod"/></svg><span class="tip">Producción</span></button>
       <button class="nav" data-view="hist"><svg class="svg"><use href="#i-hist"/></svg><span class="tip">Backup</span></button>
       <button class="nav" data-view="disk"><svg class="svg"><use href="#i-disk"/></svg><span class="tip">Discos</span></button>
+      <button class="nav" data-view="corte"><svg class="svg"><use href="#i-cut"/></svg><span class="tip">Cortes</span></button>
     </nav>
     <div class="spacer"></div>
+    <button class="x" id="setBtn" title="Ajustes"><svg class="svg" style="width:19px;height:19px"><use href="#i-gear"/></svg></button>
     <button class="x" id="logoutBtn" title="Salir"><svg class="svg" style="width:19px;height:19px"><use href="#i-out"/></svg></button>
     <div class="me" id="meAvatar"></div>
   </aside>
@@ -365,7 +372,7 @@ const CATS = ["Edición","Sonido","Color","Contenido"];
 const TIPOS = ["Pieza completa","Corta YouTube","RRSS","Otro"];
 
 /* ---------- estado ---------- */
-const state = { piezas:[], historico:[], discos:[], notas:[], listas:[], avisos:[], alertas:[], sel:null, notesOpen:false };
+const state = { piezas:[], historico:[], discos:[], notas:[], listas:[], avisos:[], alertas:[], plantillas:[], cortes:[], sel:null, notesOpen:false };
 let current = "prod";
 const $ = s => document.querySelector(s);
 const el = (h)=>{const t=document.createElement("template");t.innerHTML=h.trim();return t.content.firstChild;};
@@ -435,6 +442,7 @@ function datePicker(initial, withTime=false){
   return wrap;
 }
 const fmtDate = iso => { if(!iso) return ""; const d=new Date(iso); if(isNaN(d)) return esc(iso); return d.toLocaleDateString("es-ES",{day:"2-digit",month:"2-digit"}); };
+const fmtDateY = iso => { if(!iso) return ""; const d=new Date(iso); if(isNaN(d)) return esc(iso); return d.toLocaleDateString("es-ES",{day:"2-digit",month:"2-digit",year:"numeric"}); };
 const fmtDT = iso => { if(!iso) return ""; const d=new Date(iso); return d.toLocaleDateString("es-ES",{day:"2-digit",month:"2-digit"})+" "+d.toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}); };
 const num = v => { const n=parseFloat(v); return isNaN(n)?0:n; };
 
@@ -455,6 +463,8 @@ function listen(){
   onSnapshot(col("listas"), s=>{ state.listas=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="prod")render(); });
   onSnapshot(col("avisos"), s=>{ state.avisos=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="prod")render(); checkAvisos(); });
   onSnapshot(col("alertas"), s=>{ state.alertas=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="prod")render(); });
+  onSnapshot(col("plantillas"), s=>{ state.plantillas=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="prod"||current==="set")render(); });
+  onSnapshot(col("cortes"), s=>{ state.cortes=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="corte")render(); });
 }
 
 /* ============ AUTH ============ */
@@ -496,8 +506,12 @@ function render(){
   if(current==="hist") m.innerHTML="", m.appendChild(viewHist());
   if(current==="disk") m.innerHTML="", m.appendChild(viewDisk());
   if(current==="note") m.innerHTML="", m.appendChild(viewNote());
+  if(current==="set") m.innerHTML="", m.appendChild(viewSettings());
+  if(current==="corte") m.innerHTML="", m.appendChild(viewCortes());
+  $("#setBtn").classList.toggle("active", current==="set");
 }
 function openDetail(id){ state.sel=id; state.notesOpen=false; current="detail"; document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view==="prod")); render(); }
+$("#setBtn").onclick=()=>{ current="set"; document.querySelectorAll(".nav").forEach(n=>n.classList.remove("active")); render(); };
 
 /* ---------- pieza helpers ---------- */
 const activePiezas = ()=>state.piezas.filter(p=>!p.archived).sort((a,b)=>(a.fechaPub||"").localeCompare(b.fechaPub||""));
@@ -523,17 +537,33 @@ function viewProd(){
   return v;
 }
 
+function pubInfo(p){
+  if(!p.fechaPub) return {txt:"sin fecha de publicación", col:"var(--ter)"};
+  const d=new Date(p.fechaPub); if(isNaN(d)) return {txt:"", col:"var(--ter)"};
+  const t=new Date(); t.setHours(0,0,0,0);
+  const dd=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+  const diff=Math.round((dd-t)/86400000);
+  if(diff<0) return {txt:`publicada hace ${Math.abs(diff)} día${Math.abs(diff)===1?'':'s'}`, col:"var(--ter)"};
+  if(diff===0) return {txt:"se publica hoy", col:"var(--red)"};
+  if(diff===1) return {txt:"se publica mañana", col:"var(--amber)"};
+  return {txt:`se publica en ${diff} días`, col: diff<=3?"var(--amber)":"var(--sec)"};
+}
 function entryCard(p){
   const pasos=progress(p); const ni=nextStep(p); const isGate=ni===GATE_IDX;
+  const done=pasos.filter(Boolean).length;
   const nNotas=state.notas.filter(n=>n.piezaId===p.id).length;
   const segs=pasos.map((d,i)=>`<span class="${d?'d':(i===GATE_IDX&&isGate?'g':'')}"></span>`).join("");
   const statusTxt = ni===-1 ? "Lista para máster" : PASOS[ni];
+  const pi=pubInfo(p);
   const card=el(`<div class="entry ${isGate?'gate':''}">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span style="font-size:15px;font-weight:500">${esc(p.protagonista||"Sin nombre")}</span>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:14px">
+      <div><div style="font-size:18px;font-weight:600;font-family:var(--disp);letter-spacing:-.2px">${esc(p.protagonista||"Sin nombre")}</div>
+        <div style="font-size:12.5px;color:${pi.col};margin-top:3px">${pi.txt}</div></div>
       ${isGate?`<span class="tag" style="color:var(--amber)">paso 5</span>`:`<span class="tag">${esc(p.proyecto||"")}</span>`}</div>
-    <div class="bar">${segs}</div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:2px"><span class="status ${isGate?'gate':''}">${esc(statusTxt)}</span>
-      <span class="expander"><svg class="svg"><use href="#i-note"/></svg> ${nNotas} · abrir <svg class="svg"><use href="#i-chevr"/></svg></span></div>
+    <div class="bar" style="height:7px">${segs}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px">
+      <span class="status ${isGate?'gate':''}" style="font-size:13.5px">${done}/${PASOS.length} · ${esc(statusTxt)}</span>
+      <span class="expander" style="font-size:12.5px">${nNotas} nota${nNotas===1?'':'s'} · abrir <svg class="svg"><use href="#i-chevr"/></svg></span></div>
   </div>`);
   card.onclick=()=>openDetail(p.id);
   return card;
@@ -575,13 +605,20 @@ function sidePanels(){
   });
   at.appendChild(ab); s.appendChild(at);
 
-  // Listas de email
-  const le=el(`<div class="panel"><div class="ph">Listas de email <button class="ed"><svg class="svg" style="width:14px;height:14px"><use href="#i-edit"/></svg></button></div></div>`);
-  le.querySelector(".ed").onclick=()=>modalListas();
+  // Listas de email (gestión en Ajustes)
+  const le=el(`<div class="panel"><div class="ph">Listas de email</div></div>`);
   const lb=el(`<div class="emaillist" style="display:flex;flex-direction:column;gap:6px"></div>`);
-  if(!state.listas.length) lb.appendChild(el(`<div style="font-size:12px;color:var(--ter)">Crea grupos de correos para copiarlos de un toque.</div>`));
+  if(!state.listas.length) lb.appendChild(el(`<div style="font-size:12px;color:var(--ter)">Crea grupos de correos en Ajustes.</div>`));
   state.listas.forEach(l=>{ const b=el(`<button class="btn"><svg class="svg"><use href="#i-copy"/></svg>${esc(l.nombre)}</button>`); b.onclick=()=>copy((l.emails||"").split(/[\n,;]+/).map(x=>x.trim()).filter(Boolean).join(", ")); lb.appendChild(b); });
   le.appendChild(lb); s.appendChild(le);
+
+  // Plantillas de email (solo si hay alguna)
+  if(state.plantillas.length){
+    const tp=el(`<div class="panel"><div class="ph">Plantillas</div></div>`);
+    const tbb=el(`<div style="display:flex;flex-direction:column;gap:6px"></div>`);
+    state.plantillas.forEach(t=>{ const b=el(`<button class="btn"><svg class="svg"><use href="#i-copy"/></svg>${esc(t.nombre)}</button>`); b.onclick=()=>modalUsarPlantilla(t); tbb.appendChild(b); });
+    tp.appendChild(tbb); s.appendChild(tp);
+  }
 
   // Avisos
   const av=el(`<div class="panel"><div class="ph">Avisos</div></div>`);
@@ -767,13 +804,13 @@ function histTable(){
       <td class="mono" style="color:var(--sec)">${esc(r.disco||"—")}</td>
       <td><span class="tag">${esc(r.proyecto||"")}</span></td>
       <td class="mono" style="color:var(--sec)">${r.pesoGB!=null?r.pesoGB+" GB":"—"}</td>
-      <td class="mono fb" style="color:var(--sec);cursor:pointer">${r.fechaBackup?fmtDate(r.fechaBackup):'<span style="color:var(--ter)">— añadir</span>'}</td>
+      <td class="mono fb" style="color:var(--sec);cursor:pointer">${r.fechaBackup?fmtDateY(r.fechaBackup):'<span style="color:var(--ter)">— añadir</span>'}</td>
       <td></td>
       <td style="text-align:right;white-space:nowrap"><button class="x ed" style="width:26px;height:26px"><svg class="svg" style="width:14px;height:14px"><use href="#i-edit"/></svg></button><button class="x rm" style="width:26px;height:26px"><svg class="svg" style="width:14px;height:14px"><use href="#i-trash"/></svg></button></td>
     </tr>`);
     const offCell=tr.children[5];
-    const off=el(`<span class="off ${r.enviadoOficina?'on':''}"><span class="box"><svg class="svg"><use href="#i-check"/></svg></span>${r.enviadoOficina?(r.fechaEnvio?fmtDate(r.fechaEnvio):"sí"):"pendiente"}</span>`);
-    off.onclick=()=>{ const on=!r.enviadoOficina; upd("historico",r.id,{enviadoOficina:on,fechaEnvio:on?(r.fechaEnvio||new Date().toISOString()):null}); };
+    const off=el(`<span class="off ${r.enviadoOficina?'on':''}" style="cursor:pointer">${r.enviadoOficina?`<span class="box"><svg class="svg"><use href="#i-check"/></svg></span>${r.fechaEnvio?fmtDateY(r.fechaEnvio):"enviada"}`:'<span style="color:var(--red)">pendiente</span>'}</span>`);
+    off.onclick=()=>modalEnvio(r);
     offCell.appendChild(off);
     tr.querySelector(".fb").onclick=()=>modalHistorico(r);
     tr.querySelector(".ed").onclick=()=>modalHistorico(r);
@@ -885,6 +922,87 @@ function viewNote(){
   v.appendChild(stack); return v;
 }
 function filteredNotes(){ let l=state.notas.slice().reverse(); if(noteFilter) l=l.filter(n=>n.categoria===noteFilter); return l; }
+
+/* ============ VIEW: CORTES SIN PUBLICAR ============ */
+function viewCortes(){
+  const v=el(`<div class="view"></div>`);
+  const head=el(`<div class="head"><div><div class="kick">Cortes sin publicar</div><h1>${state.cortes.length} corte${state.cortes.length===1?'':'s'}</h1></div></div>`);
+  const add=el(`<button class="btn primary"><svg class="svg"><use href="#i-plus"/></svg>Nuevo corte</button>`);
+  add.onclick=()=>modalCorte();
+  head.appendChild(add); v.appendChild(head);
+  if(!state.cortes.length){ v.appendChild(el(`<div class="empty"><div class="big">Nada por aquí</div>Añade un corte que aún no has publicado para no perderle la pista.</div>`)); return v; }
+  const grid=el(`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px"></div>`);
+  state.cortes.slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).forEach(c=>{
+    const card=el(`<div class="panel" style="padding:16px 18px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+        <div style="font-size:16px;font-weight:600;font-family:var(--disp)">${esc(c.personaje||"Sin nombre")}</div>
+        <div style="display:flex;gap:3px"><button class="x ed" style="width:28px;height:28px"><svg class="svg" style="width:14px;height:14px"><use href="#i-edit"/></svg></button><button class="x rm" style="width:28px;height:28px"><svg class="svg" style="width:14px;height:14px"><use href="#i-trash"/></svg></button></div>
+      </div>
+      ${c.fecha?`<div class="mono" style="font-size:11.5px;color:var(--sec);margin-top:4px">${fmtDateY(c.fecha)}</div>`:''}
+      ${c.notas?`<div style="font-size:12.5px;margin-top:11px;white-space:pre-wrap;line-height:1.5">${esc(c.notas)}</div>`:''}
+      ${c.frameLink?`<a class="btn" href="${esc(c.frameLink)}" target="_blank" rel="noopener" style="margin-top:13px;display:inline-flex"><svg class="svg"><use href="#i-link"/></svg>Abrir en Frame.io</a>`:''}
+    </div>`);
+    card.querySelector(".ed").onclick=()=>modalCorte(c);
+    card.querySelector(".rm").onclick=()=>{ if(confirm(`¿Borrar el corte de "${c.personaje}"?`)) del("cortes",c.id); };
+    grid.appendChild(card);
+  });
+  v.appendChild(grid);
+  return v;
+}
+
+/* ============ VIEW: AJUSTES ============ */
+function fillTpl(text, name, isSubject){
+  const rep = isSubject ? `AJ_${(name||"NOMBRE APELLIDO").toUpperCase()}_` : (name||"Nombre Apellido");
+  return (text||"").split("{pieza}").join(rep);
+}
+function viewSettings(){
+  const v=el(`<div class="view"></div>`);
+  v.appendChild(el(`<div class="head"><div><div class="kick">Ajustes</div><h1>Tu flujo de trabajo</h1></div></div>`));
+
+  // Flujo de pasos (placeholder, próxima iteración)
+  const stepsCard=el(`<div class="panel" style="margin-bottom:14px"><div class="ph">Flujo de pasos de una pieza</div>
+    <div style="font-size:12.5px;color:var(--sec);margin-top:8px">Editor de pasos (reordenar, renombrar, añadir/quitar) — lo activamos en la próxima iteración. De momento, dime los cambios y los aplico yo.</div>
+    <div style="margin-top:11px;display:flex;flex-direction:column;gap:5px">${PASOS.map((s,i)=>`<div style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ter)"><span style="font-family:var(--mono);width:18px">${i+1}</span>${esc(s)}${i===GATE_IDX?' <span class="badge" style="color:var(--amber);border:1px solid rgba(230,162,60,.35);font-size:10px;padding:1px 7px;border-radius:6px;font-family:var(--mono)">doble envío</span>':''}${i===BACKUP_IDX?' <span class="badge" style="color:var(--teal);border:1px solid rgba(56,189,176,.35);font-size:10px;padding:1px 7px;border-radius:6px;font-family:var(--mono)">archiva</span>':''}</div>`).join("")}</div>
+  </div>`);
+  v.appendChild(stepsCard);
+
+  // Listas de email
+  const lc=el(`<div class="panel" style="margin-bottom:14px"><div class="ph">Listas de email</div><div style="font-size:12px;color:var(--sec);margin:6px 0 12px">Grupos de correos para copiar de un toque desde Producción.</div></div>`);
+  const lb=el(`<div></div>`);
+  if(!state.listas.length) lb.appendChild(el(`<div style="font-size:12px;color:var(--ter)">Aún no hay listas.</div>`));
+  state.listas.forEach(l=>{
+    const row=el(`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--bord2)">
+      <div style="flex:1"><div style="font-size:13.5px">${esc(l.nombre)}</div><div style="font-size:11px;color:var(--ter);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:520px">${esc(l.emails||"")}</div></div>
+      <button class="x ed" style="width:30px;height:30px"><svg class="svg" style="width:14px;height:14px"><use href="#i-edit"/></svg></button>
+      <button class="x rm" style="width:30px;height:30px"><svg class="svg" style="width:14px;height:14px"><use href="#i-trash"/></svg></button></div>`);
+    row.querySelector(".ed").onclick=()=>modalLista(l);
+    row.querySelector(".rm").onclick=()=>{ if(confirm(`¿Borrar la lista "${l.nombre}"?`)) del("listas",l.id); };
+    lb.appendChild(row);
+  });
+  const addL=el(`<button class="btn" style="margin-top:12px"><svg class="svg"><use href="#i-plus"/></svg>Añadir lista</button>`);
+  addL.onclick=()=>modalLista();
+  lc.appendChild(lb); lc.appendChild(addL); v.appendChild(lc);
+
+  // Plantillas de email
+  const tc=el(`<div class="panel"><div class="ph">Plantillas de email</div><div style="font-size:12px;color:var(--sec);margin:6px 0 12px">Textos para copiar y pegar en Spark. En el asunto, <span class="mono">{pieza}</span> se convierte en <span class="mono">AJ_NOMBRE APELLIDO_</span>; en el cuerpo, en <span class="mono">Nombre Apellido</span>. Si no creas ninguna, no aparece su sección en Producción.</div></div>`);
+  const tb=el(`<div></div>`);
+  if(!state.plantillas.length) tb.appendChild(el(`<div style="font-size:12px;color:var(--ter)">Aún no hay plantillas.</div>`));
+  state.plantillas.forEach(t=>{
+    const row=el(`<div style="border:1px solid var(--bord);border-radius:9px;padding:12px;margin-bottom:9px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:7px"><div style="flex:1"><div style="font-size:13.5px">${esc(t.nombre)}</div><div style="font-size:11px;color:var(--sec)">Asunto: ${esc(t.asunto||"—")}</div></div>
+        <button class="x ed" style="width:30px;height:30px"><svg class="svg" style="width:14px;height:14px"><use href="#i-edit"/></svg></button>
+        <button class="x rm" style="width:30px;height:30px"><svg class="svg" style="width:14px;height:14px"><use href="#i-trash"/></svg></button></div>
+      <div style="font-size:12px;color:var(--ter);background:var(--bg);border:1px solid var(--bord2);border-radius:7px;padding:9px;line-height:1.5;white-space:pre-wrap;max-height:70px;overflow:hidden">${esc(t.cuerpo||"")}</div></div>`);
+    row.querySelector(".ed").onclick=()=>modalPlantilla(t);
+    row.querySelector(".rm").onclick=()=>{ if(confirm(`¿Borrar la plantilla "${t.nombre}"?`)) del("plantillas",t.id); };
+    tb.appendChild(row);
+  });
+  const addT=el(`<button class="btn" style="margin-top:4px"><svg class="svg"><use href="#i-plus"/></svg>Añadir plantilla</button>`);
+  addT.onclick=()=>modalPlantilla();
+  tc.appendChild(tb); tc.appendChild(addT); v.appendChild(tc);
+
+  return v;
+}
 
 /* ============ MODALES ============ */
 function openModal(node){ const root=$("#modalRoot"); const scrim=el(`<div class="scrim"></div>`); scrim.appendChild(node); scrim.onclick=e=>{if(e.target===scrim)scrim.remove();}; root.appendChild(scrim); return scrim; }
@@ -1048,6 +1166,114 @@ function modalNota(n){
     const txt=m.querySelector(".f-txt").value.trim(); if(!txt){toast("Escribe la anotación");return;}
     await upd("notas",n.id,{ texto:txt, categoria:cat, tipo:ddTipo.getValue(), tc:m.querySelector(".f-tc").value });
     closeModal(m); toast("Nota actualizada");
+  };
+  openModal(m);
+}
+
+function modalLista(l){
+  const m=el(`<div class="modal"><div class="mh"><h2>${l?"Editar lista":"Nueva lista"}</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
+    <div class="mb">
+      <div><label>Nombre de la lista</label><input class="f-nombre" value="${l?esc(l.nombre):''}" placeholder="ej. Equipo de sonido"></div>
+      <div><label>Correos</label><textarea class="f-emails" rows="3" placeholder="separa por comas o saltos de línea">${l?esc(l.emails||''):''}</textarea></div>
+    </div>
+    <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">${l?"Guardar":"Crear"}</button></div></div>`);
+  m.querySelector(".x").onclick=()=>closeModal(m);
+  m.querySelector(".cancel").onclick=()=>closeModal(m);
+  m.querySelector(".save").onclick=async()=>{
+    const nombre=m.querySelector(".f-nombre").value.trim(); if(!nombre){toast("Pon un nombre");return;}
+    const data={ nombre, emails:m.querySelector(".f-emails").value.trim() };
+    if(l) await upd("listas",l.id,data); else await add("listas",data);
+    closeModal(m); toast(l?"Lista actualizada":"Lista creada");
+  };
+  openModal(m);
+}
+
+function modalPlantilla(t){
+  const m=el(`<div class="modal"><div class="mh"><h2>${t?"Editar plantilla":"Nueva plantilla"}</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
+    <div class="mb">
+      <div><label>Nombre (solo para ti)</label><input class="f-nombre" value="${t?esc(t.nombre):''}" placeholder="ej. Envío a sonorización"></div>
+      <div><label>Asunto</label><input class="f-asunto" value="${t?esc(t.asunto):'{pieza}'}" placeholder="{pieza} ..."></div>
+      <div><label>Cuerpo</label><textarea class="f-cuerpo" rows="6" placeholder="Hola, os paso la pieza {pieza}…">${t?esc(t.cuerpo||''):''}</textarea></div>
+      <div style="font-size:11px;color:var(--ter)">Usa <span class="mono">{pieza}</span> donde quieras el nombre. En el asunto saldrá <span class="mono">AJ_NOMBRE APELLIDO_</span>; en el cuerpo, <span class="mono">Nombre Apellido</span>.</div>
+    </div>
+    <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">${t?"Guardar":"Crear"}</button></div></div>`);
+  m.querySelector(".x").onclick=()=>closeModal(m);
+  m.querySelector(".cancel").onclick=()=>closeModal(m);
+  m.querySelector(".save").onclick=async()=>{
+    const nombre=m.querySelector(".f-nombre").value.trim(); if(!nombre){toast("Pon un nombre");return;}
+    const data={ nombre, asunto:m.querySelector(".f-asunto").value, cuerpo:m.querySelector(".f-cuerpo").value };
+    if(t) await upd("plantillas",t.id,data); else await add("plantillas",data);
+    closeModal(m); toast(t?"Plantilla actualizada":"Plantilla creada");
+  };
+  openModal(m);
+}
+
+function modalUsarPlantilla(t, prefillPiezaId=""){
+  const piezas=activePiezas();
+  const m=el(`<div class="modal"><div class="mh"><h2>Usar: ${esc(t.nombre)}</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
+    <div class="mb">
+      <div><label>Pieza</label><span class="dd-pieza"></span></div>
+      <div><label>Asunto</label><div style="display:flex;gap:8px;align-items:flex-start"><div class="out-asunto mono" style="flex:1;background:var(--bg);border:1px solid var(--bord);border-radius:8px;padding:9px 11px;font-size:12.5px;min-height:38px;white-space:pre-wrap"></div><button class="btn cp-asunto" style="padding:9px 11px"><svg class="svg"><use href="#i-copy"/></svg></button></div></div>
+      <div><label>Cuerpo</label><div style="display:flex;gap:8px;align-items:flex-start"><div class="out-cuerpo" style="flex:1;background:var(--bg);border:1px solid var(--bord);border-radius:8px;padding:9px 11px;font-size:12.5px;min-height:90px;white-space:pre-wrap;line-height:1.5"></div><button class="btn cp-cuerpo" style="padding:9px 11px"><svg class="svg"><use href="#i-copy"/></svg></button></div></div>
+    </div>
+    <div class="mf"><button class="btn cancel">Cerrar</button></div></div>`);
+  let piezaId = prefillPiezaId || (piezas[0]?piezas[0].id:"");
+  const nameOf=id=>{ const p=state.piezas.find(x=>x.id===id); return p?p.protagonista:""; };
+  function refresh(){ const nm=nameOf(piezaId); m.querySelector(".out-asunto").textContent=fillTpl(t.asunto,nm,true); m.querySelector(".out-cuerpo").textContent=fillTpl(t.cuerpo,nm,false); }
+  const ddP=dropdown(piezas.length?piezas.map(p=>({value:p.id,label:p.protagonista})):[{value:"",label:"Sin piezas activas"}], piezaId, v=>{piezaId=v;refresh();});
+  m.querySelector(".dd-pieza").replaceWith(ddP);
+  m.querySelector(".cp-asunto").onclick=()=>copy(m.querySelector(".out-asunto").textContent);
+  m.querySelector(".cp-cuerpo").onclick=()=>copy(m.querySelector(".out-cuerpo").textContent);
+  m.querySelector(".x").onclick=()=>closeModal(m);
+  m.querySelector(".cancel").onclick=()=>closeModal(m);
+  refresh();
+  openModal(m);
+}
+
+function modalEnvio(r){
+  let pend = !r.enviadoOficina;
+  const m=el(`<div class="modal"><div class="mh"><h2>Envío a oficina</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
+    <div class="mb">
+      <div style="font-size:13px;color:var(--sec)">${esc(r.pieza)}</div>
+      <label class="pend-toggle" style="display:flex;align-items:center;gap:9px;cursor:pointer"><span class="chk pend ${pend?'on':''}"><svg class="svg"><use href="#i-check"/></svg></span> <span style="color:var(--red);font-size:13.5px">Pendiente de enviar</span></label>
+      <div class="fecha-wrap"><label>Fecha de envío</label><span class="dp-fe"></span></div>
+    </div>
+    <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">Guardar</button></div></div>`);
+  const dpFe=datePicker(r.fechaEnvio?r.fechaEnvio.slice(0,10):"");
+  m.querySelector(".dp-fe").replaceWith(dpFe);
+  const chk=m.querySelector(".pend"), fw=m.querySelector(".fecha-wrap");
+  function sync(){ chk.classList.toggle("on",pend); fw.style.opacity=pend?".4":"1"; fw.style.pointerEvents=pend?"none":"auto"; }
+  m.querySelector(".pend-toggle").onclick=()=>{ pend=!pend; sync(); };
+  sync();
+  m.querySelector(".x").onclick=()=>closeModal(m);
+  m.querySelector(".cancel").onclick=()=>closeModal(m);
+  m.querySelector(".save").onclick=async()=>{
+    if(pend){ await upd("historico",r.id,{enviadoOficina:false,fechaEnvio:null}); }
+    else { const fe=dpFe.getValue(); await upd("historico",r.id,{enviadoOficina:true,fechaEnvio:fe?new Date(fe).toISOString():null}); }
+    closeModal(m); toast("Actualizado");
+  };
+  openModal(m);
+}
+
+function modalCorte(c){
+  const m=el(`<div class="modal"><div class="mh"><h2>${c?"Editar corte":"Nuevo corte"}</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
+    <div class="mb">
+      <div><label>Personaje / pieza</label><input class="f-pers" value="${c?esc(c.personaje):''}" placeholder="ej. Carlos Mendizábal"></div>
+      <div><label>Fecha</label><span class="dp-fecha"></span></div>
+      <div><label>Link de Frame.io</label><input class="f-link" value="${c?esc(c.frameLink||''):''}" placeholder="https://frame.io/…"></div>
+      <div><label>Anotaciones</label><textarea class="f-notas" rows="3" placeholder="Notas del corte…">${c?esc(c.notas||''):''}</textarea></div>
+    </div>
+    <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">${c?"Guardar":"Crear"}</button></div></div>`);
+  const dp=datePicker(c&&c.fecha?c.fecha.slice(0,10):"");
+  m.querySelector(".dp-fecha").replaceWith(dp);
+  m.querySelector(".x").onclick=()=>closeModal(m);
+  m.querySelector(".cancel").onclick=()=>closeModal(m);
+  m.querySelector(".save").onclick=async()=>{
+    const personaje=m.querySelector(".f-pers").value.trim(); if(!personaje){toast("Pon el personaje");return;}
+    const fv=dp.getValue();
+    const data={ personaje, fecha: fv?new Date(fv).toISOString():null, frameLink:m.querySelector(".f-link").value.trim(), notas:m.querySelector(".f-notas").value.trim() };
+    if(c) await upd("cortes",c.id,data); else await add("cortes",data);
+    closeModal(m); toast(c?"Corte actualizado":"Corte creado");
   };
   openModal(m);
 }
