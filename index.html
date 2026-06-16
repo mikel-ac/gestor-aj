@@ -372,7 +372,7 @@ const CATS = ["Edición","Sonido","Color","Contenido"];
 const TIPOS = ["Pieza completa","Corta YouTube","RRSS","Otro"];
 
 /* ---------- estado ---------- */
-const state = { piezas:[], historico:[], discos:[], notas:[], listas:[], avisos:[], alertas:[], plantillas:[], cortes:[], sel:null, notesOpen:false };
+const state = { piezas:[], historico:[], discos:[], notas:[], listas:[], avisos:[], alertas:[], plantillas:[], cortes:[], sel:null, selDisco:null, notesOpen:false };
 let current = "prod";
 const $ = s => document.querySelector(s);
 const el = (h)=>{const t=document.createElement("template");t.innerHTML=h.trim();return t.content.firstChild;};
@@ -458,7 +458,7 @@ const del = (name,id)=>deleteDoc(doc(db,name,id));
 function listen(){
   onSnapshot(col("piezas"), s=>{ state.piezas=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="prod"||current==="detail")render(); });
   onSnapshot(col("historico"), s=>{ state.historico=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="hist")render(); });
-  onSnapshot(col("discos"), s=>{ state.discos=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="disk"||current==="prod")render(); });
+  onSnapshot(col("discos"), s=>{ state.discos=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="disk"||current==="diskDetail"||current==="prod")render(); });
   onSnapshot(col("notas"), s=>{ state.notas=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="note"||current==="detail")render(); });
   onSnapshot(col("listas"), s=>{ state.listas=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="prod")render(); });
   onSnapshot(col("avisos"), s=>{ state.avisos=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="prod")render(); checkAvisos(); });
@@ -505,6 +505,7 @@ function render(){
   if(current==="detail") m.innerHTML="", m.appendChild(viewDetail());
   if(current==="hist") m.innerHTML="", m.appendChild(viewHist());
   if(current==="disk") m.innerHTML="", m.appendChild(viewDisk());
+  if(current==="diskDetail") m.innerHTML="", m.appendChild(viewDiscoDetail());
   if(current==="note") m.innerHTML="", m.appendChild(viewNote());
   if(current==="set") m.innerHTML="", m.appendChild(viewSettings());
   if(current==="corte") m.innerHTML="", m.appendChild(viewCortes());
@@ -869,6 +870,11 @@ function modalHistorico(r){
 
 
 /* ============ VIEW: DISCOS ============ */
+const discoProjs = d => Array.isArray(d.proyectos) ? d.proyectos : [];
+const discoUsado = d => discoProjs(d).reduce((s,p)=>s+num(p.pesoGB),0);
+function openDisco(id){ state.selDisco=id; current="diskDetail"; document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view==="disk")); render(); }
+function goDiscos(){ current="disk"; document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view==="disk")); render(); }
+
 function viewDisk(){
   const v=el(`<div class="view"></div>`);
   const head=el(`<div class="head"><div><div class="kick">Discos duros</div><h1>Inventario</h1></div></div>`);
@@ -877,20 +883,83 @@ function viewDisk(){
   if(!state.discos.length){ v.appendChild(el(`<div class="empty"><div class="big">Sin discos todavía</div>Añade tus discos para controlar el espacio libre.</div>`)); return v; }
   const g=el(`<div class="grid2"></div>`);
   state.discos.forEach(d=>{
-    const cap=num(d.capacidadGB), used=num(d.usadoGB), free=Math.max(0,cap-used), pct=cap?Math.round(used/cap*100):0;
+    const cap=num(d.capacidadGB), used=discoUsado(d), free=Math.max(0,cap-used), pct=cap?Math.round(used/cap*100):0;
     const col = pct>=90?"var(--red)":pct>=70?"var(--amber)":"var(--teal)";
-    const card=el(`<div class="panel disk">
+    const np=discoProjs(d).length;
+    const card=el(`<div class="panel disk" style="cursor:pointer">
       <div class="dtop"><span class="dname">${esc(d.nombre)}</span><span class="free">${free} GB libres</span></div>
-      <div class="projs">${esc(d.proyectos||"—")}</div>
+      <div class="projs">${np} proyecto${np===1?'':'s'}</div>
       <div class="track"><div class="fill" style="width:${pct}%;background:${col}"></div></div>
       <div class="num"><span>${used} / ${cap} GB</span><span>${pct}%</span></div>
-      <div class="acts"><button class="e"><svg class="svg" style="width:13px;height:13px"><use href="#i-edit"/></svg> Editar</button><button class="r"><svg class="svg" style="width:13px;height:13px"><use href="#i-trash"/></svg> Borrar</button></div>
     </div>`);
-    card.querySelector(".e").onclick=()=>modalDisco(d);
-    card.querySelector(".r").onclick=()=>{ if(confirm(`¿Borrar el disco "${d.nombre}"?`)) del("discos",d.id); };
+    card.onclick=()=>openDisco(d.id);
     g.appendChild(card);
   });
   v.appendChild(g); return v;
+}
+
+function viewDiscoDetail(){
+  const v=el(`<div class="view"></div>`);
+  const d=state.discos.find(x=>x.id===state.selDisco);
+  if(!d){ v.appendChild(el(`<div class="empty"><div class="big">Disco no disponible</div></div>`)); const b=el(`<button class="btn" style="margin-top:12px">‹ Volver a Discos</button>`); b.onclick=goDiscos; v.appendChild(b); return v; }
+  const cap=num(d.capacidadGB), used=discoUsado(d), free=Math.max(0,cap-used), pct=cap?Math.round(used/cap*100):0;
+  const col = pct>=90?"var(--red)":pct>=70?"var(--amber)":"var(--teal)";
+  const back=el(`<div style="font-size:13px;color:var(--sec);margin-bottom:10px;cursor:pointer">‹ Discos</div>`); back.onclick=goDiscos; v.appendChild(back);
+  const hd=el(`<div class="head"><h1>${esc(d.nombre)}</h1></div>`);
+  const hacts=el(`<div style="display:flex;gap:10px"><button class="btn ed" style="padding:6px 10px"><svg class="svg"><use href="#i-edit"/></svg></button><button class="btn rm" style="padding:6px 10px;color:var(--ter)"><svg class="svg"><use href="#i-trash"/></svg></button></div>`);
+  hacts.querySelector(".ed").onclick=()=>modalDisco(d);
+  hacts.querySelector(".rm").onclick=()=>{ if(confirm(`¿Borrar el disco "${d.nombre}"?`)){ del("discos",d.id); goDiscos(); } };
+  hd.appendChild(hacts); v.appendChild(hd);
+
+  const cardCap=el(`<div class="panel" style="margin-bottom:14px;padding:16px 18px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="ph">Capacidad</span><span style="font-size:13px;color:${col}">${free} GB libres · ${pct}%</span></div>
+    <div class="track" style="margin:11px 0 8px"><div class="fill" style="width:${pct}%;background:${col}"></div></div>
+    <div style="font-size:12.5px;color:var(--sec);font-family:var(--mono)">${used} / ${cap} GB usados</div>
+  </div>`);
+  v.appendChild(cardCap);
+
+  const projCard=el(`<div class="panel" style="padding:16px 18px"><div class="ph" style="margin-bottom:6px">Proyectos en el disco</div><div style="font-size:12px;color:var(--sec);margin-bottom:12px">El total usado se calcula sumando el peso de estos proyectos.</div></div>`);
+  const projs=discoProjs(d);
+  const list=el(`<div></div>`);
+  if(!projs.length) list.appendChild(el(`<div style="font-size:12px;color:var(--ter)">Aún no hay proyectos. Añade el primero.</div>`));
+  projs.forEach((pr,i)=>{
+    const row=el(`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--bord2)">
+      <span style="flex:1;font-size:13.5px">${esc(pr.nombre||"Sin nombre")}</span>
+      <span class="mono" style="font-size:12px;color:var(--sec)">${pr.pesoGB!=null?num(pr.pesoGB)+" GB":"—"}</span>
+      <button class="x ed" style="width:28px;height:28px"><svg class="svg" style="width:14px;height:14px"><use href="#i-edit"/></svg></button>
+      <button class="x rm" style="width:28px;height:28px"><svg class="svg" style="width:14px;height:14px"><use href="#i-trash"/></svg></button></div>`);
+    row.querySelector(".ed").onclick=()=>modalProyectoDisco(d,i);
+    row.querySelector(".rm").onclick=()=>{ if(confirm(`¿Quitar "${pr.nombre}" del disco?`)){ const arr=discoProjs(d).slice(); arr.splice(i,1); upd("discos",d.id,{proyectos:arr}); } };
+    list.appendChild(row);
+  });
+  projCard.appendChild(list);
+  const addP=el(`<button class="btn" style="margin-top:13px"><svg class="svg"><use href="#i-plus"/></svg>Añadir proyecto</button>`);
+  addP.onclick=()=>modalProyectoDisco(d);
+  projCard.appendChild(addP);
+  v.appendChild(projCard);
+  return v;
+}
+
+function modalProyectoDisco(d, idx){
+  const ex = idx!=null ? discoProjs(d)[idx] : null;
+  const m=el(`<div class="modal"><div class="mh"><h2>${ex?"Editar proyecto":"Añadir proyecto"}</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
+    <div class="mb">
+      <div><label>Nombre del proyecto / pieza</label><input class="f-pn" value="${ex?esc(ex.nombre):''}" placeholder="ej. Fernando Giraldez"></div>
+      <div><label>Peso (GB)</label><input type="number" class="f-pw" value="${ex&&ex.pesoGB!=null?num(ex.pesoGB):''}"></div>
+    </div>
+    <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">${ex?"Guardar":"Añadir"}</button></div></div>`);
+  m.querySelector(".x").onclick=()=>closeModal(m);
+  m.querySelector(".cancel").onclick=()=>closeModal(m);
+  m.querySelector(".save").onclick=async()=>{
+    const nombre=m.querySelector(".f-pn").value.trim(); if(!nombre){toast("Pon un nombre");return;}
+    const pw=m.querySelector(".f-pw").value;
+    const entry={ nombre, pesoGB: pw!=="" ? num(pw) : null };
+    const arr=discoProjs(d).slice();
+    if(idx!=null) arr[idx]=entry; else arr.push(entry);
+    await upd("discos",d.id,{proyectos:arr});
+    closeModal(m); toast(ex?"Proyecto actualizado":"Proyecto añadido");
+  };
+  openModal(m);
 }
 
 /* ============ VIEW: NOTAS ============ */
@@ -1041,7 +1110,7 @@ function modalBackup(p){
       <div><label>Peso del backup (GB)</label><input type="number" class="f-peso" placeholder="ej. 248"></div>
     </div>
     <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">Confirmar backup</button></div></div>`);
-  const ddDisk=dropdown([{value:"",label:"Selecciona…"},...state.discos.map(d=>({value:d.id,label:`${d.nombre} (${Math.max(0,num(d.capacidadGB)-num(d.usadoGB))} GB libres)`}))], "");
+  const ddDisk=dropdown([{value:"",label:"Selecciona…"},...state.discos.map(d=>({value:d.id,label:`${d.nombre} (${Math.max(0,num(d.capacidadGB)-discoUsado(d))} GB libres)`}))], "");
   m.querySelector(".dd-disk").replaceWith(ddDisk);
   m.querySelector(".x").onclick=()=>closeModal(m);
   m.querySelector(".cancel").onclick=()=>closeModal(m);
@@ -1053,7 +1122,7 @@ function modalBackup(p){
     const fechas=p.fechas||{}; fechas[BACKUP_IDX]=new Date().toISOString();
     await upd("piezas",p.id,{pasos,fechas,archived:true});
     await add("historico",{ pieza:p.protagonista, proyecto:p.proyecto, disco:disk?disk.nombre:"", pesoGB:peso||null, enviadoOficina:false, fechaEnvio:null, fechaBackup:new Date().toISOString(), fechaArchivo:new Date().toISOString(), piezaId:p.id });
-    if(disk && peso) await upd("discos",disk.id,{usadoGB:num(disk.usadoGB)+peso});
+    if(disk){ const arr=discoProjs(disk).slice(); arr.push({nombre:p.protagonista, pesoGB:peso||null}); await upd("discos",disk.id,{proyectos:arr}); }
     closeModal(m); toast("Backup hecho · guardado en la pestaña Backup"); if(current==="detail") goProd();
   };
   openModal(m);
@@ -1063,19 +1132,16 @@ function modalDisco(d){
   const m=el(`<div class="modal"><div class="mh"><h2>${d?"Editar disco":"Nuevo disco"}</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
     <div class="mb">
       <div><label>ID / Nombre</label><input class="f-name" value="${d?esc(d.nombre):''}" placeholder="LACIE_04"></div>
-      <div><label>Proyectos almacenados</label><input class="f-proj" value="${d?esc(d.proyectos||''):''}" placeholder="Global, AJMX"></div>
-      <div style="display:flex;gap:10px">
-        <div style="flex:1"><label>Capacidad total (GB)</label><input type="number" class="f-cap" value="${d?num(d.capacidadGB):''}"></div>
-        <div style="flex:1"><label>Usado (GB)</label><input type="number" class="f-used" value="${d?num(d.usadoGB):''}"></div>
-      </div>
+      <div><label>Capacidad total (GB)</label><input type="number" class="f-cap" value="${d?num(d.capacidadGB):''}"></div>
+      <div style="font-size:11px;color:var(--ter)">El espacio usado se calcula con los proyectos que añadas dentro del disco.</div>
     </div>
     <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">${d?"Guardar":"Añadir"}</button></div></div>`);
   m.querySelector(".x").onclick=()=>closeModal(m);
   m.querySelector(".cancel").onclick=()=>closeModal(m);
   m.querySelector(".save").onclick=async()=>{
-    const data={ nombre:m.querySelector(".f-name").value.trim(), proyectos:m.querySelector(".f-proj").value.trim(), capacidadGB:num(m.querySelector(".f-cap").value), usadoGB:num(m.querySelector(".f-used").value) };
-    if(!data.nombre){toast("Pon un nombre");return;}
-    if(d) await upd("discos",d.id,data); else await add("discos",data);
+    const nombre=m.querySelector(".f-name").value.trim(); if(!nombre){toast("Pon un nombre");return;}
+    const data={ nombre, capacidadGB:num(m.querySelector(".f-cap").value) };
+    if(d) await upd("discos",d.id,data); else await add("discos",{...data,proyectos:[]});
     closeModal(m); toast(d?"Disco actualizado":"Disco añadido");
   };
   openModal(m);
