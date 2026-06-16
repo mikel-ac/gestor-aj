@@ -26,6 +26,29 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 input,select,textarea{font-family:inherit;color:var(--txt);background:var(--bg);border:1px solid var(--bord);border-radius:var(--r-sm);padding:9px 11px;font-size:13px;width:100%}
 input:focus,select,textarea:focus{outline:none;border-color:var(--teal)}
 select{background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237e8785' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center;appearance:none;padding-right:30px}
+/* native control polish */
+input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+input[type=date]::-webkit-calendar-picker-indicator,input[type=datetime-local]::-webkit-calendar-picker-indicator{filter:invert(.7);cursor:pointer}
+/* custom dropdown */
+.dd{position:relative}
+.dd .ddhead{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--bg);border:1px solid var(--bord);border-radius:var(--r-sm);padding:9px 11px;font-size:13px;cursor:pointer;color:var(--txt)}
+.dd .ddhead:hover{border-color:var(--sec)}
+.dd.open .ddhead{border-color:var(--teal)}
+.dd .ddhead .svg{width:14px;height:14px;color:var(--sec);transition:transform .2s ease;flex:none}
+.dd.open .ddhead .svg{transform:rotate(180deg)}
+.dd .ddval.placeholder{color:var(--ter)}
+.dd .ddlist{position:absolute;top:calc(100% + 5px);left:0;right:0;background:var(--panel2);border:1px solid var(--bord);border-radius:var(--r-sm);padding:5px;z-index:60;box-shadow:0 12px 34px rgba(0,0,0,.5);max-height:230px;overflow:auto;display:none}
+.dd.open .ddlist{display:block;animation:fade .14s ease}
+.dd .ddopt{padding:8px 10px;border-radius:6px;font-size:13px;cursor:pointer;color:var(--txt);white-space:nowrap}
+.dd .ddopt:hover{background:var(--bg)}
+.dd .ddopt.sel{color:var(--teal)}
+/* custom checkbox */
+.chk{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--ter);display:inline-flex;align-items:center;justify-content:center;color:var(--bg);cursor:pointer;flex:none;transition:.15s ease}
+.chk .svg{width:11px;height:11px;opacity:0;stroke-width:3;transition:.15s ease}
+.chk.on{background:var(--teal);border-color:var(--teal)}
+.chk.on .svg{opacity:1}
+.filters .dd{flex:1;min-width:140px}
 .mono{font-family:var(--mono)}
 .svg{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .hidden{display:none!important}
@@ -261,7 +284,6 @@ tr:hover td{background:var(--panel)}
       <button class="nav active" data-view="prod"><svg class="svg"><use href="#i-prod"/></svg><span class="tip">Producción</span></button>
       <button class="nav" data-view="hist"><svg class="svg"><use href="#i-hist"/></svg><span class="tip">Backup</span></button>
       <button class="nav" data-view="disk"><svg class="svg"><use href="#i-disk"/></svg><span class="tip">Discos</span></button>
-      <button class="nav" data-view="note"><svg class="svg"><use href="#i-note"/></svg><span class="tip">Notas</span></button>
     </nav>
     <div class="spacer"></div>
     <button class="x" id="logoutBtn" title="Salir"><svg class="svg" style="width:19px;height:19px"><use href="#i-out"/></svg></button>
@@ -321,6 +343,25 @@ let current = "prod";
 const $ = s => document.querySelector(s);
 const el = (h)=>{const t=document.createElement("template");t.innerHTML=h.trim();return t.content.firstChild;};
 const esc = s => (s??"").toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function dropdown(opts, current, onChange){
+  opts = opts.map(o=>typeof o==="string"?{value:o,label:o}:o);
+  let val = current;
+  const placeholderEmpty = opts.length && opts[0].value==="";
+  const labelOf=v=>{ const o=opts.find(o=>o.value===v); return o?o.label:(opts[0]?opts[0].label:""); };
+  const isPlaceholder=v=> placeholderEmpty && (v===""||v==null);
+  const dd=el(`<div class="dd"><div class="ddhead"><span class="ddval ${isPlaceholder(val)?'placeholder':''}">${esc(labelOf(val))}</span><svg class="svg"><use href="#i-chev"/></svg></div><div class="ddlist"></div></div>`);
+  const list=dd.querySelector(".ddlist");
+  opts.forEach(o=>{
+    const it=el(`<div class="ddopt ${o.value===val?'sel':''}">${esc(o.label)}</div>`);
+    it.onclick=(e)=>{ e.stopPropagation(); val=o.value; const vEl=dd.querySelector(".ddval"); vEl.textContent=o.label; vEl.classList.toggle("placeholder",isPlaceholder(val)); list.querySelectorAll(".ddopt").forEach(x=>x.classList.toggle("sel",x===it)); dd.classList.remove("open"); onChange&&onChange(val); };
+    list.appendChild(it);
+  });
+  dd.querySelector(".ddhead").onclick=(e)=>{ e.stopPropagation(); const open=dd.classList.contains("open"); document.querySelectorAll(".dd.open").forEach(x=>x.classList.remove("open")); if(!open) dd.classList.add("open"); };
+  dd.getValue=()=>val;
+  return dd;
+}
+document.addEventListener("click",()=>document.querySelectorAll(".dd.open").forEach(x=>x.classList.remove("open")));
 const fmtDate = iso => { if(!iso) return ""; const d=new Date(iso); if(isNaN(d)) return esc(iso); return d.toLocaleDateString("es-ES",{day:"2-digit",month:"2-digit"}); };
 const fmtDT = iso => { if(!iso) return ""; const d=new Date(iso); return d.toLocaleDateString("es-ES",{day:"2-digit",month:"2-digit"})+" "+d.toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}); };
 const num = v => { const n=parseFloat(v); return isNaN(n)?0:n; };
@@ -585,7 +626,7 @@ function addNoteForm(p){
   const box=el(`<div class="panel"><div class="ph">Añadir nota</div></div>`);
   const qf=el(`<div class="qf">
     <div class="two">
-      <select class="nf-tipo" style="flex:1">${TIPOS.map(t=>`<option>${t}</option>`).join("")}</select>
+      <span class="dd-tipo" style="flex:1"></span>
       <input class="nf-tc mono" style="max-width:108px" placeholder="00:00:00" value="00:00:00">
     </div>
     <div class="chips nf-cats">${CATS.map((c,i)=>`<span class="chip ${i===0?'sel':''}" data-c="${c}">${c}</span>`).join("")}</div>
@@ -593,10 +634,11 @@ function addNoteForm(p){
     <button class="btn primary nf-save"><svg class="svg"><use href="#i-copy"/></svg>Guardar y copiar</button>
   </div>`);
   let cat=CATS[0];
+  const ddTipo=dropdown(TIPOS,TIPOS[0]); ddTipo.style.flex="1"; qf.querySelector(".dd-tipo").replaceWith(ddTipo);
   qf.querySelectorAll(".nf-cats .chip").forEach(ch=>ch.onclick=()=>{cat=ch.dataset.c;qf.querySelectorAll(".chip").forEach(x=>x.classList.toggle("sel",x===ch));});
   qf.querySelector(".nf-save").onclick=async()=>{
     const txt=qf.querySelector(".nf-txt").value.trim(); if(!txt){toast("Escribe la anotación");return;}
-    const note={ texto:txt, categoria:cat, tipo:qf.querySelector(".nf-tipo").value, tc:qf.querySelector(".nf-tc").value, pieza:p.protagonista, piezaId:p.id };
+    const note={ texto:txt, categoria:cat, tipo:ddTipo.getValue(), tc:qf.querySelector(".nf-tc").value, pieza:p.protagonista, piezaId:p.id };
     await add("notas",note);
     copy(formatNote(note));
     qf.querySelector(".nf-txt").value="";
@@ -612,12 +654,15 @@ function viewHist(){
   v.appendChild(el(`<div class="head"><div><div class="kick">Backup</div><h1>${state.historico.length} registro${state.historico.length===1?"":"s"}</h1></div></div>`));
   const f=el(`<div class="filters">
     <input class="f-q" placeholder="Buscar pieza…" value="${esc(histFilter.q)}">
-    <select class="f-proj"><option value="">Proyecto</option><option ${histFilter.proj==="Global"?"selected":""}>Global</option><option ${histFilter.proj==="AJMX"?"selected":""}>AJMX</option></select>
-    <select class="f-disk"><option value="">Disco</option>${[...new Set(state.historico.map(h=>h.disco).filter(Boolean))].sort().map(d=>`<option ${histFilter.disk===d?"selected":""}>${esc(d)}</option>`).join("")}</select>
+    <span class="dd-proj"></span>
+    <span class="dd-disk"></span>
   </div>`);
   f.querySelector(".f-q").oninput=e=>{histFilter.q=e.target.value;rerenderHist();};
-  f.querySelector(".f-proj").onchange=e=>{histFilter.proj=e.target.value;rerenderHist();};
-  f.querySelector(".f-disk").onchange=e=>{histFilter.disk=e.target.value;rerenderHist();};
+  const ddProj=dropdown([{value:"",label:"Proyecto"},{value:"Global",label:"Global"},{value:"AJMX",label:"AJMX"}], histFilter.proj, v=>{histFilter.proj=v;rerenderHist();});
+  const discoNames=[...new Set(state.historico.map(h=>h.disco).filter(Boolean))].sort();
+  const ddDisk=dropdown([{value:"",label:"Disco"},...discoNames.map(d=>({value:d,label:d}))], histFilter.disk, v=>{histFilter.disk=v;rerenderHist();});
+  f.querySelector(".dd-proj").replaceWith(ddProj);
+  f.querySelector(".dd-disk").replaceWith(ddDisk);
   v.appendChild(f);
   v.appendChild(histTable());
   return v;
@@ -666,32 +711,39 @@ function histTable(){
   return wrap;
 }
 function modalHistorico(r){
-  const discoOpts=[...new Set([...state.discos.map(d=>d.nombre),...state.historico.map(h=>h.disco)].filter(Boolean))].map(d=>`<option value="${esc(d)}">`).join("");
+  const discoNames=[...new Set([...state.discos.map(d=>d.nombre),...state.historico.map(h=>h.disco),r.disco].filter(Boolean))];
   const m=el(`<div class="modal"><div class="mh"><h2>Editar registro</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
     <div class="mb">
       <div><label>Pieza</label><input class="f-pieza" value="${esc(r.pieza||'')}"></div>
       <div style="display:flex;gap:10px">
-        <div style="flex:1"><label>Proyecto</label><select class="f-proj"><option ${r.proyecto==="Global"?"selected":""}>Global</option><option ${r.proyecto==="AJMX"?"selected":""}>AJMX</option></select></div>
-        <div style="flex:1"><label>Disco</label><input class="f-disco" list="discoList" value="${esc(r.disco||'')}"><datalist id="discoList">${discoOpts}</datalist></div>
+        <div style="flex:1"><label>Proyecto</label><span class="dd-proj"></span></div>
+        <div style="flex:1"><label>Disco</label><span class="dd-disco"></span></div>
       </div>
       <div style="display:flex;gap:10px">
         <div style="flex:1"><label>Peso (GB)</label><input type="number" class="f-peso" value="${r.pesoGB!=null?r.pesoGB:''}"></div>
         <div style="flex:1"><label>Fecha de backup</label><input type="date" class="f-fb" value="${r.fechaBackup?r.fechaBackup.slice(0,10):''}"></div>
       </div>
       <div style="border-top:1px solid var(--bord);padding-top:13px">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:9px"><input type="checkbox" class="f-env" ${r.enviadoOficina?"checked":""} style="width:auto"> Enviada a oficina</label>
+        <label class="env-toggle" style="display:flex;align-items:center;gap:9px;cursor:pointer;margin-bottom:9px"><span class="chk f-env ${r.enviadoOficina?'on':''}"><svg class="svg"><use href="#i-check"/></svg></span> Enviada a oficina</label>
         <div><label>Fecha de envío</label><input type="date" class="f-fe" value="${r.fechaEnvio?r.fechaEnvio.slice(0,10):''}"></div>
       </div>
     </div>
     <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">Guardar</button></div></div>`);
+  const ddProj=dropdown(["Global","AJMX"], r.proyecto==="AJMX"?"AJMX":"Global");
+  const ddDisco=dropdown(discoNames.length?discoNames:[r.disco||""], r.disco||(discoNames[0]||""));
+  m.querySelector(".dd-proj").replaceWith(ddProj);
+  m.querySelector(".dd-disco").replaceWith(ddDisco);
+  let env=!!r.enviadoOficina;
+  const chk=m.querySelector(".f-env");
+  m.querySelector(".env-toggle").onclick=()=>{ env=!env; chk.classList.toggle("on",env); };
   m.querySelector(".x").onclick=()=>closeModal(m);
   m.querySelector(".cancel").onclick=()=>closeModal(m);
   m.querySelector(".save").onclick=async()=>{
-    const env=m.querySelector(".f-env").checked, fe=m.querySelector(".f-fe").value, fb=m.querySelector(".f-fb").value, pv=m.querySelector(".f-peso").value;
+    const fe=m.querySelector(".f-fe").value, fb=m.querySelector(".f-fb").value, pv=m.querySelector(".f-peso").value;
     await upd("historico",r.id,{
       pieza:m.querySelector(".f-pieza").value.trim(),
-      proyecto:m.querySelector(".f-proj").value,
-      disco:m.querySelector(".f-disco").value.trim(),
+      proyecto:ddProj.getValue(),
+      disco:ddDisco.getValue(),
       pesoGB: pv!=="" ? num(pv) : null,
       fechaBackup: fb ? new Date(fb).toISOString() : null,
       enviadoOficina: env,
@@ -766,15 +818,17 @@ function modalPieza(p){
   const m=el(`<div class="modal"><div class="mh"><h2>${p?"Editar pieza":"Nueva pieza"}</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
     <div class="mb">
       <div><label>Protagonista</label><input class="f-name" value="${p?esc(p.protagonista):''}"></div>
-      <div><label>Proyecto</label><select class="f-proj"><option ${p&&p.proyecto==="Global"?"selected":""}>Global</option><option ${p&&p.proyecto==="AJMX"?"selected":""}>AJMX</option></select></div>
+      <div><label>Proyecto</label><span class="dd-proj"></span></div>
       <div><label>Fecha de publicación</label><input type="date" class="f-date" value="${p?esc(p.fechaPub||''):''}"></div>
       <div><label>Notas extra</label><textarea class="f-notas" rows="2">${p?esc(p.notas||''):''}</textarea></div>
     </div>
     <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">${p?"Guardar":"Crear"}</button></div></div>`);
+  const ddProj=dropdown(["Global","AJMX"], p&&p.proyecto==="AJMX"?"AJMX":"Global");
+  m.querySelector(".dd-proj").replaceWith(ddProj);
   m.querySelector(".x").onclick=()=>closeModal(m);
   m.querySelector(".cancel").onclick=()=>closeModal(m);
   m.querySelector(".save").onclick=async()=>{
-    const data={ protagonista:m.querySelector(".f-name").value.trim(), proyecto:m.querySelector(".f-proj").value, fechaPub:m.querySelector(".f-date").value, notas:m.querySelector(".f-notas").value.trim() };
+    const data={ protagonista:m.querySelector(".f-name").value.trim(), proyecto:ddProj.getValue(), fechaPub:m.querySelector(".f-date").value, notas:m.querySelector(".f-notas").value.trim() };
     if(!data.protagonista){toast("Pon un nombre");return;}
     if(p) await upd("piezas",p.id,data);
     else await add("piezas",{...data,pasos:Array(PASOS.length).fill(false),sub5:{sub:false,sono:false},fechas:{},archived:false});
@@ -784,18 +838,19 @@ function modalPieza(p){
 }
 
 function modalBackup(p){
-  const opts=state.discos.map(d=>`<option value="${d.id}">${esc(d.nombre)} (${Math.max(0,num(d.capacidadGB)-num(d.usadoGB))} GB libres)</option>`).join("");
   const m=el(`<div class="modal"><div class="mh"><h2>Backup de "${esc(p.protagonista)}"</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
     <div class="mb">
       <div style="font-size:12.5px;color:var(--sec)">Al confirmar, archivo la pieza en Backup y descuento el peso del disco.</div>
-      <div><label>¿En qué disco hiciste el backup?</label><select class="f-disk"><option value="">Selecciona…</option>${opts}</select>${state.discos.length?'':'<div style="font-size:11px;color:var(--ter);margin-top:5px">No tienes discos aún; puedes dejarlo vacío y añadirlos luego.</div>'}</div>
+      <div><label>¿En qué disco hiciste el backup?</label><span class="dd-disk"></span>${state.discos.length?'':'<div style="font-size:11px;color:var(--ter);margin-top:5px">No tienes discos aún; puedes dejarlo vacío y añadirlos luego.</div>'}</div>
       <div><label>Peso del backup (GB)</label><input type="number" class="f-peso" placeholder="ej. 248"></div>
     </div>
     <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">Confirmar backup</button></div></div>`);
+  const ddDisk=dropdown([{value:"",label:"Selecciona…"},...state.discos.map(d=>({value:d.id,label:`${d.nombre} (${Math.max(0,num(d.capacidadGB)-num(d.usadoGB))} GB libres)`}))], "");
+  m.querySelector(".dd-disk").replaceWith(ddDisk);
   m.querySelector(".x").onclick=()=>closeModal(m);
   m.querySelector(".cancel").onclick=()=>closeModal(m);
   m.querySelector(".save").onclick=async()=>{
-    const diskId=m.querySelector(".f-disk").value;
+    const diskId=ddDisk.getValue();
     const peso=num(m.querySelector(".f-peso").value);
     const disk=state.discos.find(d=>d.id===diskId);
     const pasos=progress(p).slice(); pasos[BACKUP_IDX]=true;
@@ -877,14 +932,16 @@ function modalAlerta(){
   const m=el(`<div class="modal"><div class="mh"><h2>Nueva alerta</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
     <div class="mb">
       <div><label>¿Qué tienes que vigilar?</label><input class="f-txt" placeholder="ej. Disco LACIE_04 casi lleno"></div>
-      <div><label>Nivel</label><select class="f-niv"><option value="info">Info</option><option value="aviso" selected>Aviso</option><option value="urgente">Urgente</option></select></div>
+      <div><label>Nivel</label><span class="dd-niv"></span></div>
     </div>
     <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">Crear alerta</button></div></div>`);
+  const ddNiv=dropdown([{value:"info",label:"Info"},{value:"aviso",label:"Aviso"},{value:"urgente",label:"Urgente"}], "aviso");
+  m.querySelector(".dd-niv").replaceWith(ddNiv);
   m.querySelector(".x").onclick=()=>closeModal(m);
   m.querySelector(".cancel").onclick=()=>closeModal(m);
   m.querySelector(".save").onclick=async()=>{
     const txt=m.querySelector(".f-txt").value.trim(); if(!txt){toast("Escribe la alerta");return;}
-    await add("alertas",{ texto:txt, nivel:m.querySelector(".f-niv").value });
+    await add("alertas",{ texto:txt, nivel:ddNiv.getValue() });
     closeModal(m); toast("Alerta creada");
   };
   openModal(m);
@@ -893,18 +950,20 @@ function modalAlerta(){
 function modalNota(n){
   const m=el(`<div class="modal"><div class="mh"><h2>Editar nota</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
     <div class="mb">
-      <div style="display:flex;gap:9px"><div style="flex:1"><label>Tipo</label><select class="f-tipo">${TIPOS.map(t=>`<option ${n.tipo===t?"selected":""}>${t}</option>`).join("")}</select></div><div style="width:120px"><label>TC</label><input class="f-tc mono" value="${esc(n.tc||'')}"></div></div>
+      <div style="display:flex;gap:9px"><div style="flex:1"><label>Tipo</label><span class="dd-tipo"></span></div><div style="width:120px"><label>TC</label><input class="f-tc mono" value="${esc(n.tc||'')}"></div></div>
       <div><label>Categoría</label><div class="chips f-cats">${CATS.map(c=>`<span class="chip ${n.categoria===c?'sel':''}" data-c="${c}">${c}</span>`).join("")}</div></div>
       <div><label>Anotación</label><textarea class="f-txt" rows="3">${esc(n.texto||'')}</textarea></div>
     </div>
     <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">Guardar</button></div></div>`);
   let cat=CATS.includes(n.categoria)?n.categoria:CATS[0];
+  const ddTipo=dropdown(TIPOS, TIPOS.includes(n.tipo)?n.tipo:TIPOS[0]);
+  m.querySelector(".dd-tipo").replaceWith(ddTipo);
   m.querySelectorAll(".f-cats .chip").forEach(ch=>ch.onclick=()=>{cat=ch.dataset.c;m.querySelectorAll(".f-cats .chip").forEach(x=>x.classList.toggle("sel",x===ch));});
   m.querySelector(".x").onclick=()=>closeModal(m);
   m.querySelector(".cancel").onclick=()=>closeModal(m);
   m.querySelector(".save").onclick=async()=>{
     const txt=m.querySelector(".f-txt").value.trim(); if(!txt){toast("Escribe la anotación");return;}
-    await upd("notas",n.id,{ texto:txt, categoria:cat, tipo:m.querySelector(".f-tipo").value, tc:m.querySelector(".f-tc").value });
+    await upd("notas",n.id,{ texto:txt, categoria:cat, tipo:ddTipo.getValue(), tc:m.querySelector(".f-tc").value });
     closeModal(m); toast("Nota actualizada");
   };
   openModal(m);
