@@ -293,6 +293,7 @@ tr:hover td{background:var(--panel)}
   <symbol id="i-cut" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></symbol>
   <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
   <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></symbol>
+  <symbol id="i-grip" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></symbol>
 </svg>
 
 <div id="loader"><div class="spin"></div></div>
@@ -592,20 +593,6 @@ async function toggleStep(p,i,val){
 
 function sidePanels(){
   const s=el(`<div class="stack"></div>`);
-  // Atención (alertas manuales)
-  const at=el(`<div class="panel"><div class="ph">Atención <button class="add"><svg class="svg" style="width:14px;height:14px"><use href="#i-plus"/></svg></button></div></div>`);
-  at.querySelector(".add").onclick=()=>modalAlerta();
-  const ab=el(`<div></div>`);
-  if(!state.alertas.length) ab.appendChild(el(`<div style="font-size:12px;color:var(--ter)">Sin alertas. Crea una para no perder de vista algo importante.</div>`));
-  const colmap={info:"var(--teal)",aviso:"var(--amber)",urgente:"var(--red)"};
-  state.alertas.forEach(a=>{
-    const c=colmap[a.nivel]||"var(--teal)";
-    const ico = a.nivel==="urgente" ? `<svg class="svg" style="width:15px;height:15px;color:${c}"><use href="#i-alert"/></svg>` : `<span style="color:${c};font-size:11px">●</span>`;
-    const row=el(`<div class="alertrow">${ico}<span>${esc(a.texto)}</span><button class="x"><svg class="svg" style="width:13px;height:13px"><use href="#i-x"/></svg></button></div>`);
-    row.querySelector(".x").onclick=()=>del("alertas",a.id);
-    ab.appendChild(row);
-  });
-  at.appendChild(ab); s.appendChild(at);
 
   // Listas de email (gestión en Ajustes)
   const le=el(`<div class="panel"><div class="ph">Listas de email</div></div>`);
@@ -622,20 +609,30 @@ function sidePanels(){
     tp.appendChild(tbb); s.appendChild(tp);
   }
 
-  // Avisos
-  const av=el(`<div class="panel"><div class="ph">Avisos</div></div>`);
-  const ab2=el(`<div></div>`);
-  const pend=state.avisos.filter(a=>!a.done).sort((a,b)=>(a.cuando||"").localeCompare(b.cuando||""));
-  if(!pend.length) ab2.appendChild(el(`<div style="font-size:12px;color:var(--ter)">Sin avisos pendientes.</div>`));
-  pend.forEach(a=>{
-    const over = a.cuando && new Date(a.cuando)<new Date();
-    const row=el(`<div class="aviso ${over?'over':''}"><svg class="svg"><use href="#i-bell"/></svg><span>${esc(a.texto)}</span><span class="when">${fmtDT(a.cuando)}</span><button class="x" style="width:22px;height:22px"><svg class="svg" style="width:13px;height:13px"><use href="#i-x"/></svg></button></div>`);
-    row.querySelector(".x").onclick=()=>del("avisos",a.id);
-    ab2.appendChild(row);
+  // Avisos (unificado: con o sin fecha)
+  const av=el(`<div class="panel"><div class="ph">Avisos <button class="add"><svg class="svg" style="width:14px;height:14px"><use href="#i-plus"/></svg></button></div></div>`);
+  av.querySelector(".add").onclick=()=>modalAviso();
+  const ab=el(`<div></div>`);
+  const colmap={info:"var(--teal)",aviso:"var(--amber)",urgente:"var(--red)"};
+  // mezcla: avisos (con/sin fecha) + alertas antiguas (sin fecha)
+  const items=[
+    ...state.avisos.filter(a=>!a.done).map(a=>({...a,_col:"avisos"})),
+    ...state.alertas.map(a=>({...a,_col:"alertas",cuando:null}))
+  ].sort((a,b)=>{
+    if(a.cuando&&b.cuando) return a.cuando.localeCompare(b.cuando);
+    if(a.cuando) return -1; if(b.cuando) return 1; return 0;
   });
-  const addAv=el(`<button class="btn" style="width:100%;justify-content:center;margin-top:9px"><svg class="svg"><use href="#i-plus"/></svg>Nuevo aviso</button>`);
-  addAv.onclick=()=>modalAviso();
-  av.appendChild(ab2); av.appendChild(addAv); s.appendChild(av);
+  if(!items.length) ab.appendChild(el(`<div style="font-size:12px;color:var(--ter)">Sin avisos. Crea uno (con o sin fecha) para no perder algo de vista.</div>`));
+  items.forEach(a=>{
+    const c=colmap[a.nivel]||"var(--amber)";
+    const over = a.cuando && new Date(a.cuando)<new Date();
+    const ico = a.cuando ? `<svg class="svg" style="color:${over?'var(--red)':c}"><use href="#i-bell"/></svg>` : `<span style="color:${c};font-size:11px;width:15px;text-align:center">●</span>`;
+    const when = a.cuando ? `<span class="when" style="${over?'color:var(--red)':''}">${fmtDT(a.cuando)}</span>` : '';
+    const row=el(`<div class="aviso ${over?'over':''}">${ico}<span>${esc(a.texto)}</span>${when}<button class="x" style="width:22px;height:22px"><svg class="svg" style="width:13px;height:13px"><use href="#i-x"/></svg></button></div>`);
+    row.querySelector(".x").onclick=()=>del(a._col,a.id);
+    ab.appendChild(row);
+  });
+  av.appendChild(ab); s.appendChild(av);
   return s;
 }
 
@@ -873,27 +870,44 @@ function modalHistorico(r){
 /* ============ VIEW: DISCOS ============ */
 const discoProjs = d => Array.isArray(d.proyectos) ? d.proyectos : [];
 const discoUsado = d => discoProjs(d).reduce((s,p)=>s+num(p.pesoGB),0);
+const round1 = n => Math.round((Number(n)||0)*10)/10;
+const discoPct = (used,cap) => cap ? round1(used/cap*100) : 0;
 function openDisco(id){ state.selDisco=id; current="diskDetail"; document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view==="disk")); render(); }
 function goDiscos(){ current="disk"; document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view==="disk")); render(); }
 
+function orderedDiscos(){ return state.discos.slice().sort((a,b)=>((a.orden??1e9)-(b.orden??1e9))||(a.nombre||"").localeCompare(b.nombre||"")); }
+function reorderDiscos(fromId,toId){
+  const ord=orderedDiscos();
+  const fi=ord.findIndex(x=>x.id===fromId), ti=ord.findIndex(x=>x.id===toId);
+  if(fi<0||ti<0||fi===ti) return;
+  const [m]=ord.splice(fi,1); ord.splice(ti,0,m);
+  ord.forEach((x,i)=>{ if(x.orden!==i) upd("discos",x.id,{orden:i}); });
+}
+let dragDiscoId=null;
 function viewDisk(){
   const v=el(`<div class="view"></div>`);
   const head=el(`<div class="head"><div><div class="kick">Discos duros</div><h1>Inventario</h1></div></div>`);
   const addB=el(`<button class="btn primary"><svg class="svg"><use href="#i-plus"/></svg>Añadir disco</button>`); addB.onclick=()=>modalDisco();
   head.appendChild(addB); v.appendChild(head);
   if(!state.discos.length){ v.appendChild(el(`<div class="empty"><div class="big">Sin discos todavía</div>Añade tus discos para controlar el espacio libre.</div>`)); return v; }
+  if(state.discos.length>1) v.appendChild(el(`<div style="font-size:11.5px;color:var(--ter);margin-bottom:10px">Arrastra los discos para reordenarlos a tu gusto.</div>`));
   const g=el(`<div class="grid2"></div>`);
-  state.discos.forEach(d=>{
-    const cap=num(d.capacidadGB), used=discoUsado(d), free=Math.max(0,cap-used), pct=cap?Math.round(used/cap*100):0;
+  orderedDiscos().forEach(d=>{
+    const cap=num(d.capacidadGB), used=discoUsado(d), free=Math.max(0,cap-used), pct=discoPct(used,cap);
     const col = pct>=90?"var(--red)":pct>=70?"var(--amber)":"var(--teal)";
     const np=discoProjs(d).length;
-    const card=el(`<div class="panel disk" style="cursor:pointer">
-      <div class="dtop"><span class="dname">${esc(d.nombre)}</span><span class="free">${free} GB libres</span></div>
+    const card=el(`<div class="panel disk" draggable="true" style="cursor:pointer">
+      <div class="dtop"><span class="dname"><svg class="svg grip" style="width:13px;height:13px;color:var(--ter);margin-right:7px;cursor:grab;vertical-align:-1px"><use href="#i-grip"/></svg>${esc(d.nombre)}</span><span class="free">${round1(free)} GB libres</span></div>
       <div class="projs">${np} proyecto${np===1?'':'s'}</div>
       <div class="track"><div class="fill" style="width:${pct}%;background:${col}"></div></div>
-      <div class="num"><span>${used} / ${cap} GB</span><span>${pct}%</span></div>
+      <div class="num"><span>${round1(used)} / ${round1(cap)} GB</span><span>${pct}%</span></div>
     </div>`);
     card.onclick=()=>openDisco(d.id);
+    card.ondragstart=e=>{ dragDiscoId=d.id; e.dataTransfer.effectAllowed="move"; card.style.opacity=".45"; };
+    card.ondragend=()=>{ card.style.opacity="1"; dragDiscoId=null; };
+    card.ondragover=e=>{ e.preventDefault(); card.style.outline="1px solid var(--teal)"; };
+    card.ondragleave=()=>{ card.style.outline="none"; };
+    card.ondrop=e=>{ e.preventDefault(); card.style.outline="none"; if(dragDiscoId&&dragDiscoId!==d.id) reorderDiscos(dragDiscoId,d.id); };
     g.appendChild(card);
   });
   v.appendChild(g); return v;
@@ -903,7 +917,7 @@ function viewDiscoDetail(){
   const v=el(`<div class="view"></div>`);
   const d=state.discos.find(x=>x.id===state.selDisco);
   if(!d){ v.appendChild(el(`<div class="empty"><div class="big">Disco no disponible</div></div>`)); const b=el(`<button class="btn" style="margin-top:12px">‹ Volver a Discos</button>`); b.onclick=goDiscos; v.appendChild(b); return v; }
-  const cap=num(d.capacidadGB), used=discoUsado(d), free=Math.max(0,cap-used), pct=cap?Math.round(used/cap*100):0;
+  const cap=num(d.capacidadGB), used=discoUsado(d), free=Math.max(0,cap-used), pct=discoPct(used,cap);
   const col = pct>=90?"var(--red)":pct>=70?"var(--amber)":"var(--teal)";
   const back=el(`<div style="font-size:13px;color:var(--sec);margin-bottom:10px;cursor:pointer">‹ Discos</div>`); back.onclick=goDiscos; v.appendChild(back);
   const hd=el(`<div class="head"><h1>${esc(d.nombre)}</h1></div>`);
@@ -913,9 +927,9 @@ function viewDiscoDetail(){
   hd.appendChild(hacts); v.appendChild(hd);
 
   const cardCap=el(`<div class="panel" style="margin-bottom:14px;padding:16px 18px">
-    <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="ph">Capacidad</span><span style="font-size:13px;color:${col}">${free} GB libres · ${pct}%</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="ph">Capacidad</span><span style="font-size:13px;color:${col}">${round1(free)} GB libres · ${pct}%</span></div>
     <div class="track" style="margin:11px 0 8px"><div class="fill" style="width:${pct}%;background:${col}"></div></div>
-    <div style="font-size:12.5px;color:var(--sec);font-family:var(--mono)">${used} / ${cap} GB usados</div>
+    <div style="font-size:12.5px;color:var(--sec);font-family:var(--mono)">${round1(used)} / ${round1(cap)} GB usados</div>
   </div>`);
   v.appendChild(cardCap);
 
@@ -1115,7 +1129,7 @@ function modalBackup(p){
       <div><label>Peso del backup (GB)</label><input type="number" class="f-peso" placeholder="ej. 248"></div>
     </div>
     <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">Confirmar backup</button></div></div>`);
-  const ddDisk=dropdown([{value:"",label:"Selecciona…"},...state.discos.map(d=>({value:d.id,label:`${d.nombre} (${Math.max(0,num(d.capacidadGB)-discoUsado(d))} GB libres)`}))], "");
+  const ddDisk=dropdown([{value:"",label:"Selecciona…"},...orderedDiscos().map(d=>({value:d.id,label:`${d.nombre} (${round1(Math.max(0,num(d.capacidadGB)-discoUsado(d)))} GB libres)`}))], "");
   m.querySelector(".dd-disk").replaceWith(ddDisk);
   m.querySelector(".x").onclick=()=>closeModal(m);
   m.querySelector(".cancel").onclick=()=>closeModal(m);
@@ -1153,25 +1167,25 @@ function modalDisco(d){
 }
 
 function modalAviso(prefill="",piezaId=""){
-  const pad=n=>String(n).padStart(2,'0');
-  const d=new Date(Date.now()+3600000);
-  const def=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   const m=el(`<div class="modal"><div class="mh"><h2>Nuevo aviso</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
     <div class="mb">
       <div><label>¿De qué te aviso?</label><input class="f-txt" value="${esc(prefill)}" placeholder="ej. Recordar envío de subs"></div>
-      <div><label>Cuándo</label><span class="dp-when"></span></div>
-      <div style="font-size:11px;color:var(--ter)">El aviso aparece en el panel y, si lo permites, te avisa el navegador mientras la app esté abierta.</div>
+      <div><label>Nivel</label><span class="dd-niv"></span></div>
+      <div><label>Cuándo <span style="color:var(--ter)">(opcional)</span></label><span class="dp-when"></span></div>
+      <div style="font-size:11px;color:var(--ter)">Con fecha y hora, te avisa cuando llegue (si lo permites en el navegador). Sin fecha, se queda como nota fija de atención.</div>
     </div>
     <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">Crear aviso</button></div></div>`);
-  const dpWhen=datePicker(def,true);
+  const ddNiv=dropdown([{value:"info",label:"Info"},{value:"aviso",label:"Aviso"},{value:"urgente",label:"Urgente"}], "aviso");
+  m.querySelector(".dd-niv").replaceWith(ddNiv);
+  const dpWhen=datePicker("",true);
   m.querySelector(".dp-when").replaceWith(dpWhen);
   m.querySelector(".x").onclick=()=>closeModal(m);
   m.querySelector(".cancel").onclick=()=>closeModal(m);
   m.querySelector(".save").onclick=async()=>{
     const txt=m.querySelector(".f-txt").value.trim(); if(!txt){toast("Escribe el aviso");return;}
-    const w=dpWhen.getValue(); if(!w){toast("Elige fecha y hora");return;}
-    if("Notification" in window && Notification.permission==="default") Notification.requestPermission();
-    await add("avisos",{ texto:txt, cuando:new Date(w).toISOString(), piezaId, done:false, notified:false });
+    const w=dpWhen.getValue();
+    if(w && "Notification" in window && Notification.permission==="default") Notification.requestPermission();
+    await add("avisos",{ texto:txt, nivel:ddNiv.getValue(), cuando:w?new Date(w).toISOString():null, piezaId, done:false, notified:false });
     closeModal(m); toast("Aviso creado");
   };
   openModal(m);
