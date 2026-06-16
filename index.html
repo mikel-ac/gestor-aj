@@ -356,25 +356,37 @@ try {
 } catch(e){ db = initializeFirestore(fbApp, {}); }
 
 /* ---------- constantes ---------- */
-const PASOS = [
-  "Pedir LUTs de color",
-  "Primer edit",
-  "Revisión de color",
-  "Cambios y OK de edición",
-  "Subtitulado + Sonorización",
-  "Enviar revisión final",
-  "Enviar hilo de máster",
-  "Vídeos para redes",
-  "Exportar masters limpios",
-  "Hacer backup"
+const DEFAULT_PASOS = [
+  {nombre:"Pedir LUTs de color", tipo:"normal"},
+  {nombre:"Primer edit", tipo:"normal"},
+  {nombre:"Revisión de color", tipo:"normal"},
+  {nombre:"Cambios y OK de edición", tipo:"normal"},
+  {nombre:"Subtitulado + Sonorización", tipo:"gate"},
+  {nombre:"Enviar revisión final", tipo:"normal"},
+  {nombre:"Enviar hilo de máster", tipo:"normal"},
+  {nombre:"Vídeos para redes", tipo:"normal"},
+  {nombre:"Exportar masters limpios", tipo:"normal"},
+  {nombre:"Hacer backup", tipo:"backup"}
 ];
-const GATE_IDX = 4;       // paso 5
-const BACKUP_IDX = 9;     // paso 10 (último)
+let PASOS_CFG = DEFAULT_PASOS.slice();
+let PASOS = PASOS_CFG.map(s=>s.nombre);
+let GATE_IDX = PASOS_CFG.findIndex(s=>s.tipo==="gate");
+let BACKUP_IDX = PASOS_CFG.findIndex(s=>s.tipo==="backup");
+function applyStepsConfig(cfg){
+  if(cfg && Array.isArray(cfg.pasos) && cfg.pasos.length){
+    PASOS_CFG = cfg.pasos.map(s=>({nombre:s.nombre||"", tipo:s.tipo||"normal"}));
+  } else {
+    PASOS_CFG = DEFAULT_PASOS.slice();
+  }
+  PASOS = PASOS_CFG.map(s=>s.nombre);
+  GATE_IDX = PASOS_CFG.findIndex(s=>s.tipo==="gate");
+  BACKUP_IDX = PASOS_CFG.findIndex(s=>s.tipo==="backup");
+}
 const CATS = ["Edición","Sonido","Color","Contenido"];
 const TIPOS = ["Pieza completa","Corta YouTube","RRSS","Otro"];
 
 /* ---------- estado ---------- */
-const state = { piezas:[], historico:[], discos:[], notas:[], listas:[], avisos:[], alertas:[], plantillas:[], cortes:[], sel:null, selDisco:null, notesOpen:false };
+const state = { piezas:[], historico:[], discos:[], notas:[], listas:[], avisos:[], alertas:[], plantillas:[], cortes:[], sel:null, selDisco:null, stepsCfgId:null, notesOpen:false };
 let current = "prod";
 const $ = s => document.querySelector(s);
 const el = (h)=>{const t=document.createElement("template");t.innerHTML=h.trim();return t.content.firstChild;};
@@ -467,6 +479,7 @@ function listen(){
   onSnapshot(col("alertas"), s=>{ state.alertas=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="prod")render(); });
   onSnapshot(col("plantillas"), s=>{ state.plantillas=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="prod"||current==="set")render(); });
   onSnapshot(col("cortes"), s=>{ state.cortes=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="corte")render(); });
+  onSnapshot(col("config"), s=>{ const d=s.docs[0]; state.stepsCfgId=d?d.id:null; applyStepsConfig(d?d.data():null); if(current==="prod"||current==="detail"||current==="set")render(); });
 }
 
 /* ============ AUTH ============ */
@@ -518,7 +531,7 @@ $("#setBtn").onclick=()=>{ current="set"; document.querySelectorAll(".nav").forE
 
 /* ---------- pieza helpers ---------- */
 const activePiezas = ()=>state.piezas.filter(p=>!p.archived).sort((a,b)=>(a.fechaPub||"").localeCompare(b.fechaPub||""));
-function progress(p){ const pasos=(p.pasos||[]).slice(); while(pasos.length<PASOS.length) pasos.push(false); const sub=p.sub5||{sub:false,sono:false}; pasos[GATE_IDX]=!!(sub.sub&&sub.sono); return pasos; }
+function progress(p){ const pasos=(p.pasos||[]).slice(); while(pasos.length<PASOS.length) pasos.push(false); const sub=p.sub5||{sub:false,sono:false}; if(GATE_IDX>=0) pasos[GATE_IDX]=!!(sub.sub&&sub.sono); return pasos; }
 function nextStep(p){ const pasos=progress(p); const i=pasos.findIndex(x=>!x); return i; }
 
 /* ============ VIEW: PRODUCCIÓN ============ */
@@ -562,7 +575,7 @@ function entryCard(p){
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:14px">
       <div><div style="font-size:18px;font-weight:600;font-family:var(--disp);letter-spacing:-.2px">${esc(p.protagonista||"Sin nombre")}</div>
         <div style="font-size:12.5px;color:${pi.col};margin-top:3px">${pi.txt}</div></div>
-      ${isGate?`<span class="tag" style="color:var(--amber)">paso 5</span>`:`<span class="tag">${esc(p.proyecto||"")}</span>`}</div>
+      ${isGate?`<span class="tag" style="color:var(--amber)">paso ${GATE_IDX+1}</span>`:`<span class="tag">${esc(p.proyecto||"")}</span>`}</div>
     <div class="bar" style="height:7px">${segs}</div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px">
       <span class="status ${isGate?'gate':''}" style="font-size:13.5px">${done}/${PASOS.length} · ${esc(statusTxt)}</span>
@@ -575,7 +588,7 @@ function entryCard(p){
 function gateBox(p){
   const sub=p.sub5||{sub:false,sono:false};
   const box=el(`<div class="gatebox">
-    <div class="gt">5 · Subtitulado + Sonorización <em>· externalizado, 2 envíos</em></div>
+    <div class="gt">${GATE_IDX+1} · ${esc(PASOS[GATE_IDX]||"Doble envío")} <em>· 2 envíos</em></div>
     <div class="subrow s1"><span class="mini ${sub.sub?'on':''}"><svg class="svg"><use href="#i-check"/></svg></span> Enviar a subtitulado</div>
     <div class="subrow s2"><span class="mini ${sub.sono?'on':''}"><svg class="svg"><use href="#i-check"/></svg></span> Enviar a sonorización</div>
   </div>`);
@@ -1043,16 +1056,65 @@ function fillTpl(text, name, isSubject){
   const rep = isSubject ? `AJ_${(name||"NOMBRE APELLIDO").toUpperCase()}_` : (name||"Nombre Apellido");
   return (text||"").split("{pieza}").join(rep);
 }
+
+let stepsEditing=null;
+function stepsEditorCard(){
+  stepsEditing = PASOS_CFG.map(s=>({nombre:s.nombre, tipo:s.tipo||"normal"}));
+  const card=el(`<div class="panel" style="margin-bottom:14px"><div class="ph">Flujo de pasos de una pieza</div>
+    <div style="font-size:12px;color:var(--sec);margin:6px 0 12px">Reordena (arrastra el asa), renombra, añade o elimina pasos. Marca cuál es el de <b style="color:var(--amber);font-weight:500">doble envío</b> y cuál el de <b style="color:var(--teal);font-weight:500">backup</b>.</div></div>`);
+  const rows=el(`<div></div>`);
+  let dragI=null;
+  function renderRows(){
+    rows.innerHTML="";
+    stepsEditing.forEach((s,i)=>{
+      const row=el(`<div class="srow" draggable="true" style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--bord2)">
+        <span style="color:var(--ter);cursor:grab"><svg class="svg" style="width:13px;height:13px"><use href="#i-grip"/></svg></span>
+        <span style="font-family:var(--mono);font-size:12px;color:var(--sec);width:18px">${i+1}</span>
+        <input class="nm" value="${esc(s.nombre)}" style="flex:1" placeholder="Nombre del paso">
+        <span class="tipo"></span>
+        <button class="x rm" style="width:28px;height:28px"><svg class="svg" style="width:14px;height:14px"><use href="#i-trash"/></svg></button>
+      </div>`);
+      row.querySelector(".nm").oninput=e=>{ stepsEditing[i].nombre=e.target.value; };
+      const ddT=dropdown([{value:"normal",label:"Normal"},{value:"gate",label:"Doble envío"},{value:"backup",label:"Backup"}], s.tipo||"normal", v=>{
+        if(v==="gate") stepsEditing.forEach((x,j)=>{ if(j!==i&&x.tipo==="gate") x.tipo="normal"; });
+        if(v==="backup") stepsEditing.forEach((x,j)=>{ if(j!==i&&x.tipo==="backup") x.tipo="normal"; });
+        stepsEditing[i].tipo=v; renderRows();
+      });
+      ddT.style.width="138px";
+      row.querySelector(".tipo").replaceWith(ddT);
+      row.ondragstart=e=>{ dragI=i; e.dataTransfer.effectAllowed="move"; row.style.opacity=".45"; };
+      row.ondragend=()=>{ row.style.opacity="1"; dragI=null; };
+      row.ondragover=e=>{ e.preventDefault(); };
+      row.ondrop=e=>{ e.preventDefault(); if(dragI==null||dragI===i) return; const [m]=stepsEditing.splice(dragI,1); stepsEditing.splice(i,0,m); renderRows(); };
+      row.querySelector(".rm").onclick=()=>{ if(stepsEditing.length<=1){toast("Debe quedar al menos un paso");return;} stepsEditing.splice(i,1); renderRows(); };
+      rows.appendChild(row);
+    });
+  }
+  renderRows();
+  card.appendChild(rows);
+  const foot=el(`<div style="display:flex;gap:8px;margin-top:13px"></div>`);
+  const addBtn=el(`<button class="btn"><svg class="svg"><use href="#i-plus"/></svg>Añadir paso</button>`);
+  addBtn.onclick=()=>{ stepsEditing.push({nombre:"", tipo:"normal"}); renderRows(); };
+  const saveBtn=el(`<button class="btn primary">Guardar cambios</button>`);
+  saveBtn.onclick=async()=>{
+    const clean=stepsEditing.map(s=>({nombre:(s.nombre||"").trim(), tipo:s.tipo||"normal"})).filter(s=>s.nombre);
+    if(!clean.length){toast("Pon al menos un paso con nombre");return;}
+    if(state.stepsCfgId) await upd("config",state.stepsCfgId,{pasos:clean});
+    else await add("config",{pasos:clean});
+    if(activePiezas().length) await add("avisos",{texto:"Revisa tus piezas en curso: ha cambiado el flujo de pasos.", nivel:"urgente", cuando:null, done:false, notified:false});
+    toast("Flujo de pasos guardado");
+  };
+  foot.appendChild(addBtn); foot.appendChild(saveBtn);
+  card.appendChild(foot);
+  return card;
+}
+
 function viewSettings(){
   const v=el(`<div class="view"></div>`);
   v.appendChild(el(`<div class="head"><div><div class="kick">Ajustes</div><h1>Tu flujo de trabajo</h1></div></div>`));
 
-  // Flujo de pasos (placeholder, próxima iteración)
-  const stepsCard=el(`<div class="panel" style="margin-bottom:14px"><div class="ph">Flujo de pasos de una pieza</div>
-    <div style="font-size:12.5px;color:var(--sec);margin-top:8px">Editor de pasos (reordenar, renombrar, añadir/quitar) — lo activamos en la próxima iteración. De momento, dime los cambios y los aplico yo.</div>
-    <div style="margin-top:11px;display:flex;flex-direction:column;gap:5px">${PASOS.map((s,i)=>`<div style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ter)"><span style="font-family:var(--mono);width:18px">${i+1}</span>${esc(s)}${i===GATE_IDX?' <span class="badge" style="color:var(--amber);border:1px solid rgba(230,162,60,.35);font-size:10px;padding:1px 7px;border-radius:6px;font-family:var(--mono)">doble envío</span>':''}${i===BACKUP_IDX?' <span class="badge" style="color:var(--teal);border:1px solid rgba(56,189,176,.35);font-size:10px;padding:1px 7px;border-radius:6px;font-family:var(--mono)">archiva</span>':''}</div>`).join("")}</div>
-  </div>`);
-  v.appendChild(stepsCard);
+  // Flujo de pasos (editor)
+  v.appendChild(stepsEditorCard());
 
   // Listas de email
   const lc=el(`<div class="panel" style="margin-bottom:14px"><div class="ph">Listas de email</div><div style="font-size:12px;color:var(--sec);margin:6px 0 12px">Grupos de correos para copiar de un toque desde Producción.</div></div>`);
