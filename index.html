@@ -49,6 +49,31 @@ input[type=date]::-webkit-calendar-picker-indicator,input[type=datetime-local]::
 .chk.on{background:var(--teal);border-color:var(--teal)}
 .chk.on .svg{opacity:1}
 .filters .dd{flex:1;min-width:140px}
+/* custom date picker */
+.dp{position:relative}
+.dpfield{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--bg);border:1px solid var(--bord);border-radius:var(--r-sm);padding:9px 11px;font-size:13px;cursor:pointer;color:var(--txt)}
+.dpfield:hover{border-color:var(--sec)}
+.dpfield.ph{color:var(--ter)}
+.dpfield .svg{width:15px;height:15px;color:var(--sec);flex:none}
+.dppop{position:fixed;background:var(--panel2);border:1px solid var(--bord);border-radius:10px;padding:12px;z-index:70;box-shadow:0 14px 40px rgba(0,0,0,.55);width:262px;display:none}
+.dppop.open{display:block;animation:fade .14s ease}
+.dpnav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.dpnav button{width:28px;height:28px;border-radius:7px;color:var(--sec);display:flex;align-items:center;justify-content:center}
+.dpnav button:hover{background:var(--bg);color:var(--txt)}
+.dpnav .mlabel{font-size:13px;font-weight:600;font-family:var(--disp)}
+.dpgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.dpw{font-size:10px;color:var(--ter);text-align:center;padding:4px 0;font-family:var(--mono)}
+.dpd{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:12.5px;border-radius:7px;cursor:pointer;color:var(--txt)}
+.dpd:hover{background:var(--bg)}
+.dpd.other{color:var(--ter);opacity:.45;cursor:default}
+.dpd.other:hover{background:transparent}
+.dpd.today{box-shadow:inset 0 0 0 1px var(--sec)}
+.dpd.sel{background:var(--teal);color:#06201b;font-weight:600}
+.dptime{display:flex;align-items:center;gap:8px;margin-top:11px;padding-top:11px;border-top:1px solid var(--bord)}
+.dptime .lbl{font-size:11px;color:var(--sec)}
+.dpfoot{display:flex;justify-content:space-between;margin-top:10px}
+.dpfoot button{font-size:12px;color:var(--teal)}
+.dpfoot .clear{color:var(--ter)}
 .mono{font-family:var(--mono)}
 .svg{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .hidden{display:none!important}
@@ -254,6 +279,8 @@ tr:hover td{background:var(--panel)}
   <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
   <symbol id="i-chev" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
   <symbol id="i-chevr" viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></symbol>
+  <symbol id="i-chevl" viewBox="0 0 24 24"><polyline points="15 6 9 12 15 18"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></symbol>
   <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 9v4"/><path d="M10.3 3.9 1.7 18a2 2 0 0 0 1.7 3h17.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 17h.01"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></symbol>
   <symbol id="i-edit" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></symbol>
@@ -279,7 +306,7 @@ tr:hover td{background:var(--panel)}
 <!-- APP -->
 <div id="app" class="hidden">
   <aside class="rail">
-    <div class="logo">EO</div>
+    <div class="logo">AJ</div>
     <nav>
       <button class="nav active" data-view="prod"><svg class="svg"><use href="#i-prod"/></svg><span class="tip">Producción</span></button>
       <button class="nav" data-view="hist"><svg class="svg"><use href="#i-hist"/></svg><span class="tip">Backup</span></button>
@@ -361,7 +388,52 @@ function dropdown(opts, current, onChange){
   dd.getValue=()=>val;
   return dd;
 }
-document.addEventListener("click",()=>document.querySelectorAll(".dd.open").forEach(x=>x.classList.remove("open")));
+document.addEventListener("click",()=>document.querySelectorAll(".dd.open,.dppop.open").forEach(x=>x.classList.remove("open")));
+
+function datePicker(initial, withTime=false){
+  const pad=n=>String(n).padStart(2,'0');
+  let sel=null, hh=9, mm=0;
+  if(initial){ const mt=initial.match(/(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/); if(mt){ sel=new Date(+mt[1],+mt[2]-1,+mt[3]); if(mt[4]!==undefined){hh=+mt[4];mm=+mt[5];} } }
+  const today=new Date();
+  let viewY=sel?sel.getFullYear():today.getFullYear(), viewM=sel?sel.getMonth():today.getMonth();
+  const MES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  const WD=["L","M","X","J","V","S","D"];
+  const wrap=el(`<div class="dp"><div class="dpfield ${sel?'':'ph'}"><span class="dpv"></span><svg class="svg"><use href="#i-cal"/></svg></div><div class="dppop"></div></div>`);
+  const field=wrap.querySelector(".dpfield"), pop=wrap.querySelector(".dppop"), vEl=wrap.querySelector(".dpv");
+  function fmt(){ if(!sel){ vEl.textContent=withTime?"Elegir fecha y hora":"Elegir fecha"; field.classList.add("ph"); return; } field.classList.remove("ph"); vEl.textContent=`${pad(sel.getDate())}/${pad(sel.getMonth()+1)}/${sel.getFullYear()}`+(withTime?` · ${pad(hh)}:${pad(mm)}`:""); }
+  function build(){
+    let h=`<div class="dpnav"><button class="prev"><svg class="svg" style="width:16px;height:16px"><use href="#i-chevl"/></svg></button><span class="mlabel">${MES[viewM]} ${viewY}</span><button class="next"><svg class="svg" style="width:16px;height:16px"><use href="#i-chevr"/></svg></button></div><div class="dpgrid">`+WD.map(w=>`<div class="dpw">${w}</div>`).join("");
+    const start=(new Date(viewY,viewM,1).getDay()+6)%7, dim=new Date(viewY,viewM+1,0).getDate(), prev=new Date(viewY,viewM,0).getDate();
+    for(let i=0;i<start;i++) h+=`<div class="dpd other">${prev-start+1+i}</div>`;
+    for(let d=1;d<=dim;d++){ const tdy=today.getFullYear()===viewY&&today.getMonth()===viewM&&today.getDate()===d; const sl=sel&&sel.getFullYear()===viewY&&sel.getMonth()===viewM&&sel.getDate()===d; h+=`<div class="dpd ${tdy?'today':''} ${sl?'sel':''}" data-d="${d}">${d}</div>`; }
+    const tot=start+dim; for(let i=tot;i<42;i++) h+=`<div class="dpd other">${i-tot+1}</div>`;
+    h+=`</div>`;
+    if(withTime) h+=`<div class="dptime"><span class="lbl">Hora</span><span class="dd-h" style="flex:1"></span><span class="dd-m" style="flex:1"></span></div>`;
+    h+=`<div class="dpfoot"><button class="clear">Borrar</button><button class="todaybtn">Hoy</button></div>`;
+    pop.innerHTML=h;
+    pop.querySelector(".prev").onclick=e=>{e.stopPropagation();viewM--;if(viewM<0){viewM=11;viewY--;}build();};
+    pop.querySelector(".next").onclick=e=>{e.stopPropagation();viewM++;if(viewM>11){viewM=0;viewY++;}build();};
+    pop.querySelectorAll(".dpd[data-d]").forEach(c=>c.onclick=e=>{e.stopPropagation();sel=new Date(viewY,viewM,+c.dataset.d);fmt();build();if(!withTime)close();});
+    pop.querySelector(".clear").onclick=e=>{e.stopPropagation();sel=null;fmt();close();};
+    pop.querySelector(".todaybtn").onclick=e=>{e.stopPropagation();const t=new Date();sel=new Date(t.getFullYear(),t.getMonth(),t.getDate());viewY=sel.getFullYear();viewM=sel.getMonth();fmt();build();if(!withTime)close();};
+    if(withTime){
+      const hO=Array.from({length:24},(_,i)=>({value:String(i),label:pad(i)}));
+      const mO=[0,5,10,15,20,25,30,35,40,45,50,55].map(i=>({value:String(i),label:pad(i)}));
+      const ddH=dropdown(hO,String(hh),v=>{hh=+v;if(!sel){const t=new Date();sel=new Date(t.getFullYear(),t.getMonth(),t.getDate());build();}fmt();});
+      const ddM=dropdown(mO,String(mm),v=>{mm=+v;if(!sel){const t=new Date();sel=new Date(t.getFullYear(),t.getMonth(),t.getDate());build();}fmt();});
+      ddH.style.flex="1";ddM.style.flex="1";
+      pop.querySelector(".dd-h").replaceWith(ddH); pop.querySelector(".dd-m").replaceWith(ddM);
+    }
+  }
+  function place(){ const r=field.getBoundingClientRect(); const ph=withTime?372:312; pop.style.left=r.left+"px"; pop.style.width=Math.max(r.width,262)+"px"; pop.style.top=((r.bottom+6+ph>window.innerHeight)?(r.top-6-ph):(r.bottom+6))+"px"; }
+  function close(){ pop.classList.remove("open"); }
+  field.onclick=e=>{ e.stopPropagation(); const open=pop.classList.contains("open"); document.querySelectorAll(".dd.open,.dppop.open").forEach(x=>x.classList.remove("open")); if(!open){ build(); place(); pop.classList.add("open"); } };
+  pop.onclick=e=>e.stopPropagation();
+  window.addEventListener("scroll",close,true);
+  fmt();
+  wrap.getValue=()=> sel ? (`${sel.getFullYear()}-${pad(sel.getMonth()+1)}-${pad(sel.getDate())}`+(withTime?`T${pad(hh)}:${pad(mm)}`:"")) : "";
+  return wrap;
+}
 const fmtDate = iso => { if(!iso) return ""; const d=new Date(iso); if(isNaN(d)) return esc(iso); return d.toLocaleDateString("es-ES",{day:"2-digit",month:"2-digit"}); };
 const fmtDT = iso => { if(!iso) return ""; const d=new Date(iso); return d.toLocaleDateString("es-ES",{day:"2-digit",month:"2-digit"})+" "+d.toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}); };
 const num = v => { const n=parseFloat(v); return isNaN(n)?0:n; };
@@ -721,25 +793,29 @@ function modalHistorico(r){
       </div>
       <div style="display:flex;gap:10px">
         <div style="flex:1"><label>Peso (GB)</label><input type="number" class="f-peso" value="${r.pesoGB!=null?r.pesoGB:''}"></div>
-        <div style="flex:1"><label>Fecha de backup</label><input type="date" class="f-fb" value="${r.fechaBackup?r.fechaBackup.slice(0,10):''}"></div>
+        <div style="flex:1"><label>Fecha de backup</label><span class="dp-fb"></span></div>
       </div>
       <div style="border-top:1px solid var(--bord);padding-top:13px">
         <label class="env-toggle" style="display:flex;align-items:center;gap:9px;cursor:pointer;margin-bottom:9px"><span class="chk f-env ${r.enviadoOficina?'on':''}"><svg class="svg"><use href="#i-check"/></svg></span> Enviada a oficina</label>
-        <div><label>Fecha de envío</label><input type="date" class="f-fe" value="${r.fechaEnvio?r.fechaEnvio.slice(0,10):''}"></div>
+        <div><label>Fecha de envío</label><span class="dp-fe"></span></div>
       </div>
     </div>
     <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">Guardar</button></div></div>`);
   const ddProj=dropdown(["Global","AJMX"], r.proyecto==="AJMX"?"AJMX":"Global");
   const ddDisco=dropdown(discoNames.length?discoNames:[r.disco||""], r.disco||(discoNames[0]||""));
+  const dpFb=datePicker(r.fechaBackup?r.fechaBackup.slice(0,10):"");
+  const dpFe=datePicker(r.fechaEnvio?r.fechaEnvio.slice(0,10):"");
   m.querySelector(".dd-proj").replaceWith(ddProj);
   m.querySelector(".dd-disco").replaceWith(ddDisco);
+  m.querySelector(".dp-fb").replaceWith(dpFb);
+  m.querySelector(".dp-fe").replaceWith(dpFe);
   let env=!!r.enviadoOficina;
   const chk=m.querySelector(".f-env");
   m.querySelector(".env-toggle").onclick=()=>{ env=!env; chk.classList.toggle("on",env); };
   m.querySelector(".x").onclick=()=>closeModal(m);
   m.querySelector(".cancel").onclick=()=>closeModal(m);
   m.querySelector(".save").onclick=async()=>{
-    const fe=m.querySelector(".f-fe").value, fb=m.querySelector(".f-fb").value, pv=m.querySelector(".f-peso").value;
+    const fe=dpFe.getValue(), fb=dpFb.getValue(), pv=m.querySelector(".f-peso").value;
     await upd("historico",r.id,{
       pieza:m.querySelector(".f-pieza").value.trim(),
       proyecto:ddProj.getValue(),
@@ -819,16 +895,18 @@ function modalPieza(p){
     <div class="mb">
       <div><label>Protagonista</label><input class="f-name" value="${p?esc(p.protagonista):''}"></div>
       <div><label>Proyecto</label><span class="dd-proj"></span></div>
-      <div><label>Fecha de publicación</label><input type="date" class="f-date" value="${p?esc(p.fechaPub||''):''}"></div>
+      <div><label>Fecha de publicación</label><span class="dp-date"></span></div>
       <div><label>Notas extra</label><textarea class="f-notas" rows="2">${p?esc(p.notas||''):''}</textarea></div>
     </div>
     <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">${p?"Guardar":"Crear"}</button></div></div>`);
   const ddProj=dropdown(["Global","AJMX"], p&&p.proyecto==="AJMX"?"AJMX":"Global");
   m.querySelector(".dd-proj").replaceWith(ddProj);
+  const dpDate=datePicker(p&&p.fechaPub?p.fechaPub.slice(0,10):"");
+  m.querySelector(".dp-date").replaceWith(dpDate);
   m.querySelector(".x").onclick=()=>closeModal(m);
   m.querySelector(".cancel").onclick=()=>closeModal(m);
   m.querySelector(".save").onclick=async()=>{
-    const data={ protagonista:m.querySelector(".f-name").value.trim(), proyecto:ddProj.getValue(), fechaPub:m.querySelector(".f-date").value, notas:m.querySelector(".f-notas").value.trim() };
+    const data={ protagonista:m.querySelector(".f-name").value.trim(), proyecto:ddProj.getValue(), fechaPub:dpDate.getValue(), notas:m.querySelector(".f-notas").value.trim() };
     if(!data.protagonista){toast("Pon un nombre");return;}
     if(p) await upd("piezas",p.id,data);
     else await add("piezas",{...data,pasos:Array(PASOS.length).fill(false),sub5:{sub:false,sono:false},fechas:{},archived:false});
@@ -886,20 +964,25 @@ function modalDisco(d){
 }
 
 function modalAviso(prefill="",piezaId=""){
-  const def=new Date(Date.now()+3600000).toISOString().slice(0,16);
+  const pad=n=>String(n).padStart(2,'0');
+  const d=new Date(Date.now()+3600000);
+  const def=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   const m=el(`<div class="modal"><div class="mh"><h2>Nuevo aviso</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
     <div class="mb">
       <div><label>¿De qué te aviso?</label><input class="f-txt" value="${esc(prefill)}" placeholder="ej. Recordar envío de subs"></div>
-      <div><label>Cuándo</label><input type="datetime-local" class="f-when" value="${def}"></div>
+      <div><label>Cuándo</label><span class="dp-when"></span></div>
       <div style="font-size:11px;color:var(--ter)">El aviso aparece en el panel y, si lo permites, te avisa el navegador mientras la app esté abierta.</div>
     </div>
     <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">Crear aviso</button></div></div>`);
+  const dpWhen=datePicker(def,true);
+  m.querySelector(".dp-when").replaceWith(dpWhen);
   m.querySelector(".x").onclick=()=>closeModal(m);
   m.querySelector(".cancel").onclick=()=>closeModal(m);
   m.querySelector(".save").onclick=async()=>{
     const txt=m.querySelector(".f-txt").value.trim(); if(!txt){toast("Escribe el aviso");return;}
+    const w=dpWhen.getValue(); if(!w){toast("Elige fecha y hora");return;}
     if("Notification" in window && Notification.permission==="default") Notification.requestPermission();
-    await add("avisos",{ texto:txt, cuando:new Date(m.querySelector(".f-when").value).toISOString(), piezaId, done:false, notified:false });
+    await add("avisos",{ texto:txt, cuando:new Date(w).toISOString(), piezaId, done:false, notified:false });
     closeModal(m); toast("Aviso creado");
   };
   openModal(m);
