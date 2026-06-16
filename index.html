@@ -292,6 +292,7 @@ tr:hover td{background:var(--panel)}
   <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
   <symbol id="i-cut" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></symbol>
   <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+  <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></symbol>
 </svg>
 
 <div id="loader"><div class="spin"></div></div>
@@ -316,7 +317,7 @@ tr:hover td{background:var(--panel)}
       <button class="nav active" data-view="prod"><svg class="svg"><use href="#i-prod"/></svg><span class="tip">Producción</span></button>
       <button class="nav" data-view="hist"><svg class="svg"><use href="#i-hist"/></svg><span class="tip">Backup</span></button>
       <button class="nav" data-view="disk"><svg class="svg"><use href="#i-disk"/></svg><span class="tip">Discos</span></button>
-      <button class="nav" data-view="corte"><svg class="svg"><use href="#i-cut"/></svg><span class="tip">Cortes</span></button>
+      <button class="nav" data-view="corte"><svg class="svg"><use href="#i-bookmark"/></svg><span class="tip">Piezas sin publicar</span></button>
     </nav>
     <div class="spacer"></div>
     <button class="x" id="setBtn" title="Ajustes"><svg class="svg" style="width:19px;height:19px"><use href="#i-gear"/></svg></button>
@@ -923,11 +924,14 @@ function viewDiscoDetail(){
   const list=el(`<div></div>`);
   if(!projs.length) list.appendChild(el(`<div style="font-size:12px;color:var(--ter)">Aún no hay proyectos. Añade el primero.</div>`));
   projs.forEach((pr,i)=>{
-    const row=el(`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--bord2)">
-      <span style="flex:1;font-size:13.5px">${esc(pr.nombre||"Sin nombre")}</span>
-      <span class="mono" style="font-size:12px;color:var(--sec)">${pr.pesoGB!=null?num(pr.pesoGB)+" GB":"—"}</span>
-      <button class="x ed" style="width:28px;height:28px"><svg class="svg" style="width:14px;height:14px"><use href="#i-edit"/></svg></button>
-      <button class="x rm" style="width:28px;height:28px"><svg class="svg" style="width:14px;height:14px"><use href="#i-trash"/></svg></button></div>`);
+    const row=el(`<div style="padding:9px 0;border-bottom:1px solid var(--bord2)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="flex:1;font-size:13.5px">${esc(pr.nombre||"Sin nombre")}</span>
+        <span class="mono" style="font-size:12px;color:var(--sec)">${pr.pesoGB!=null?num(pr.pesoGB)+" GB":"—"}</span>
+        <button class="x ed" style="width:28px;height:28px"><svg class="svg" style="width:14px;height:14px"><use href="#i-edit"/></svg></button>
+        <button class="x rm" style="width:28px;height:28px"><svg class="svg" style="width:14px;height:14px"><use href="#i-trash"/></svg></button></div>
+      ${pr.comentarios?`<div style="font-size:12px;color:var(--sec);margin-top:5px;white-space:pre-wrap;line-height:1.45">${esc(pr.comentarios)}</div>`:''}
+    </div>`);
     row.querySelector(".ed").onclick=()=>modalProyectoDisco(d,i);
     row.querySelector(".rm").onclick=()=>{ if(confirm(`¿Quitar "${pr.nombre}" del disco?`)){ const arr=discoProjs(d).slice(); arr.splice(i,1); upd("discos",d.id,{proyectos:arr}); } };
     list.appendChild(row);
@@ -946,6 +950,7 @@ function modalProyectoDisco(d, idx){
     <div class="mb">
       <div><label>Nombre del proyecto / pieza</label><input class="f-pn" value="${ex?esc(ex.nombre):''}" placeholder="ej. Fernando Giraldez"></div>
       <div><label>Peso (GB)</label><input type="number" class="f-pw" value="${ex&&ex.pesoGB!=null?num(ex.pesoGB):''}"></div>
+      <div><label>Comentarios</label><textarea class="f-pc" rows="3" placeholder="Anotaciones concretas de este proyecto…">${ex?esc(ex.comentarios||''):''}</textarea></div>
     </div>
     <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">${ex?"Guardar":"Añadir"}</button></div></div>`);
   m.querySelector(".x").onclick=()=>closeModal(m);
@@ -953,7 +958,7 @@ function modalProyectoDisco(d, idx){
   m.querySelector(".save").onclick=async()=>{
     const nombre=m.querySelector(".f-pn").value.trim(); if(!nombre){toast("Pon un nombre");return;}
     const pw=m.querySelector(".f-pw").value;
-    const entry={ nombre, pesoGB: pw!=="" ? num(pw) : null };
+    const entry={ nombre, pesoGB: pw!=="" ? num(pw) : null, comentarios:m.querySelector(".f-pc").value.trim() };
     const arr=discoProjs(d).slice();
     if(idx!=null) arr[idx]=entry; else arr.push(entry);
     await upd("discos",d.id,{proyectos:arr});
@@ -992,14 +997,14 @@ function viewNote(){
 }
 function filteredNotes(){ let l=state.notas.slice().reverse(); if(noteFilter) l=l.filter(n=>n.categoria===noteFilter); return l; }
 
-/* ============ VIEW: CORTES SIN PUBLICAR ============ */
+/* ============ VIEW: PIEZAS SIN PUBLICAR ============ */
 function viewCortes(){
   const v=el(`<div class="view"></div>`);
-  const head=el(`<div class="head"><div><div class="kick">Cortes sin publicar</div><h1>${state.cortes.length} corte${state.cortes.length===1?'':'s'}</h1></div></div>`);
-  const add=el(`<button class="btn primary"><svg class="svg"><use href="#i-plus"/></svg>Nuevo corte</button>`);
+  const head=el(`<div class="head"><div><div class="kick">Piezas sin publicar</div><h1>${state.cortes.length} pieza${state.cortes.length===1?'':'s'}</h1></div></div>`);
+  const add=el(`<button class="btn primary"><svg class="svg"><use href="#i-plus"/></svg>Añadir pieza</button>`);
   add.onclick=()=>modalCorte();
   head.appendChild(add); v.appendChild(head);
-  if(!state.cortes.length){ v.appendChild(el(`<div class="empty"><div class="big">Nada por aquí</div>Añade un corte que aún no has publicado para no perderle la pista.</div>`)); return v; }
+  if(!state.cortes.length){ v.appendChild(el(`<div class="empty"><div class="big">Nada por aquí</div>Añade una pieza que aún no has publicado para no perderle la pista.</div>`)); return v; }
   const grid=el(`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px"></div>`);
   state.cortes.slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).forEach(c=>{
     const card=el(`<div class="panel" style="padding:16px 18px">
@@ -1012,7 +1017,7 @@ function viewCortes(){
       ${c.frameLink?`<a class="btn" href="${esc(c.frameLink)}" target="_blank" rel="noopener" style="margin-top:13px;display:inline-flex"><svg class="svg"><use href="#i-link"/></svg>Abrir en Frame.io</a>`:''}
     </div>`);
     card.querySelector(".ed").onclick=()=>modalCorte(c);
-    card.querySelector(".rm").onclick=()=>{ if(confirm(`¿Borrar el corte de "${c.personaje}"?`)) del("cortes",c.id); };
+    card.querySelector(".rm").onclick=()=>{ if(confirm(`¿Borrar la pieza de "${c.personaje}"?`)) del("cortes",c.id); };
     grid.appendChild(card);
   });
   v.appendChild(grid);
@@ -1322,12 +1327,12 @@ function modalEnvio(r){
 }
 
 function modalCorte(c){
-  const m=el(`<div class="modal"><div class="mh"><h2>${c?"Editar corte":"Nuevo corte"}</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
+  const m=el(`<div class="modal"><div class="mh"><h2>${c?"Editar pieza":"Pieza sin publicar"}</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
     <div class="mb">
-      <div><label>Personaje / pieza</label><input class="f-pers" value="${c?esc(c.personaje):''}" placeholder="ej. Carlos Mendizábal"></div>
+      <div><label>Personaje</label><input class="f-pers" value="${c?esc(c.personaje):''}" placeholder="ej. Carlos Mendizábal"></div>
       <div><label>Fecha</label><span class="dp-fecha"></span></div>
       <div><label>Link de Frame.io</label><input class="f-link" value="${c?esc(c.frameLink||''):''}" placeholder="https://frame.io/…"></div>
-      <div><label>Anotaciones</label><textarea class="f-notas" rows="3" placeholder="Notas del corte…">${c?esc(c.notas||''):''}</textarea></div>
+      <div><label>Anotaciones</label><textarea class="f-notas" rows="3" placeholder="Notas de la pieza…">${c?esc(c.notas||''):''}</textarea></div>
     </div>
     <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">${c?"Guardar":"Crear"}</button></div></div>`);
   const dp=datePicker(c&&c.fecha?c.fecha.slice(0,10):"");
@@ -1339,7 +1344,7 @@ function modalCorte(c){
     const fv=dp.getValue();
     const data={ personaje, fecha: fv?new Date(fv).toISOString():null, frameLink:m.querySelector(".f-link").value.trim(), notas:m.querySelector(".f-notas").value.trim() };
     if(c) await upd("cortes",c.id,data); else await add("cortes",data);
-    closeModal(m); toast(c?"Corte actualizado":"Corte creado");
+    closeModal(m); toast(c?"Pieza actualizada":"Pieza creada");
   };
   openModal(m);
 }
