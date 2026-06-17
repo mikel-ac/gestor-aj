@@ -196,7 +196,11 @@ h1{font-family:var(--disp);font-size:22px;font-weight:600;letter-spacing:-.3px}
 .aviso .svg{width:15px;height:15px;color:var(--amber);margin-top:2px}
 .aviso.over .svg{color:var(--red)}
 .aviso .when{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--sec);white-space:nowrap}
-.aviso .x{color:var(--ter)}
+.aviso .x{margin-left:auto;color:var(--ter)}
+.aviso .x .svg{color:var(--ter);margin-top:0}
+.aviso .x:hover{background:var(--panel2);color:var(--txt)}
+.aviso .x:hover .svg{color:var(--txt)}
+.aviso .txt{flex:1}
 
 /* ---------- TABLE (histórico) ---------- */
 .filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
@@ -641,7 +645,7 @@ function sidePanels(){
     const over = a.cuando && new Date(a.cuando)<new Date();
     const ico = a.cuando ? `<svg class="svg" style="color:${over?'var(--red)':c}"><use href="#i-bell"/></svg>` : `<span style="color:${c};font-size:11px;width:15px;text-align:center">●</span>`;
     const when = a.cuando ? `<span class="when" style="${over?'color:var(--red)':''}">${fmtDT(a.cuando)}</span>` : '';
-    const row=el(`<div class="aviso ${over?'over':''}">${ico}<span>${esc(a.texto)}</span>${when}<button class="x" style="width:22px;height:22px"><svg class="svg" style="width:13px;height:13px"><use href="#i-x"/></svg></button></div>`);
+    const row=el(`<div class="aviso ${over?'over':''}">${ico}<span class="txt">${esc(a.texto)}</span>${when}<button class="x" style="width:22px;height:22px"><svg class="svg" style="width:13px;height:13px"><use href="#i-x"/></svg></button></div>`);
     row.querySelector(".x").onclick=()=>del(a._col,a.id);
     ab.appendChild(row);
   });
@@ -884,6 +888,7 @@ function modalHistorico(r){
 const discoProjs = d => Array.isArray(d.proyectos) ? d.proyectos : [];
 const discoUsado = d => discoProjs(d).reduce((s,p)=>s+num(p.pesoGB),0);
 const round1 = n => Math.round((Number(n)||0)*10)/10;
+const fmtSize = gb => { gb=Number(gb)||0; return gb>=1000 ? round1(gb/1000)+" TB" : round1(gb)+" GB"; };
 const discoPct = (used,cap) => cap ? round1(used/cap*100) : 0;
 function openDisco(id){ state.selDisco=id; current="diskDetail"; document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view==="disk")); render(); }
 function goDiscos(){ current="disk"; document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view==="disk")); render(); }
@@ -910,10 +915,10 @@ function viewDisk(){
     const col = pct>=90?"var(--red)":pct>=70?"var(--amber)":"var(--teal)";
     const np=discoProjs(d).length;
     const card=el(`<div class="panel disk" draggable="true" style="cursor:pointer">
-      <div class="dtop"><span class="dname"><svg class="svg grip" style="width:13px;height:13px;color:var(--ter);margin-right:7px;cursor:grab;vertical-align:-1px"><use href="#i-grip"/></svg>${esc(d.nombre)}</span><span class="free">${round1(free)} GB libres</span></div>
+      <div class="dtop"><span class="dname"><svg class="svg grip" style="width:13px;height:13px;color:var(--ter);margin-right:7px;cursor:grab;vertical-align:-1px"><use href="#i-grip"/></svg>${esc(d.nombre)}</span><span class="free">${fmtSize(free)} libres</span></div>
       <div class="projs">${np} proyecto${np===1?'':'s'}</div>
       <div class="track"><div class="fill" style="width:${pct}%;background:${col}"></div></div>
-      <div class="num"><span>${round1(used)} / ${round1(cap)} GB</span><span>${pct}%</span></div>
+      <div class="num"><span>${fmtSize(used)} / ${fmtSize(cap)}</span><span>${pct}%</span></div>
     </div>`);
     card.onclick=()=>openDisco(d.id);
     card.ondragstart=e=>{ dragDiscoId=d.id; e.dataTransfer.effectAllowed="move"; card.style.opacity=".45"; };
@@ -940,9 +945,9 @@ function viewDiscoDetail(){
   hd.appendChild(hacts); v.appendChild(hd);
 
   const cardCap=el(`<div class="panel" style="margin-bottom:14px;padding:16px 18px">
-    <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="ph">Capacidad</span><span style="font-size:13px;color:${col}">${round1(free)} GB libres · ${pct}%</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="ph">Capacidad</span><span style="font-size:13px;color:${col}">${fmtSize(free)} libres · ${pct}%</span></div>
     <div class="track" style="margin:11px 0 8px"><div class="fill" style="width:${pct}%;background:${col}"></div></div>
-    <div style="font-size:12.5px;color:var(--sec);font-family:var(--mono)">${round1(used)} / ${round1(cap)} GB usados</div>
+    <div style="font-size:12.5px;color:var(--sec);font-family:var(--mono)">${fmtSize(used)} / ${fmtSize(cap)} usados</div>
   </div>`);
   v.appendChild(cardCap);
 
@@ -954,7 +959,7 @@ function viewDiscoDetail(){
     const row=el(`<div style="padding:9px 0;border-bottom:1px solid var(--bord2)">
       <div style="display:flex;align-items:center;gap:10px">
         <span style="flex:1;font-size:13.5px">${esc(pr.nombre||"Sin nombre")}</span>
-        <span class="mono" style="font-size:12px;color:var(--sec)">${pr.pesoGB!=null?num(pr.pesoGB)+" GB":"—"}</span>
+        <span class="mono" style="font-size:12px;color:var(--sec)">${pr.pesoGB!=null?fmtSize(pr.pesoGB):"—"}</span>
         <button class="x ed" style="width:28px;height:28px"><svg class="svg" style="width:14px;height:14px"><use href="#i-edit"/></svg></button>
         <button class="x rm" style="width:28px;height:28px"><svg class="svg" style="width:14px;height:14px"><use href="#i-trash"/></svg></button></div>
       ${pr.comentarios?`<div style="font-size:12px;color:var(--sec);margin-top:5px;white-space:pre-wrap;line-height:1.45">${esc(pr.comentarios)}</div>`:''}
@@ -1191,7 +1196,7 @@ function modalBackup(p){
       <div><label>Peso del backup (GB)</label><input type="number" class="f-peso" placeholder="ej. 248"></div>
     </div>
     <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">Confirmar backup</button></div></div>`);
-  const ddDisk=dropdown([{value:"",label:"Selecciona…"},...orderedDiscos().map(d=>({value:d.id,label:`${d.nombre} (${round1(Math.max(0,num(d.capacidadGB)-discoUsado(d)))} GB libres)`}))], "");
+  const ddDisk=dropdown([{value:"",label:"Selecciona…"},...orderedDiscos().map(d=>({value:d.id,label:`${d.nombre} (${fmtSize(Math.max(0,num(d.capacidadGB)-discoUsado(d)))} libres)`}))], "");
   m.querySelector(".dd-disk").replaceWith(ddDisk);
   m.querySelector(".x").onclick=()=>closeModal(m);
   m.querySelector(".cancel").onclick=()=>closeModal(m);
@@ -1243,13 +1248,16 @@ function modalAviso(prefill="",piezaId=""){
   m.querySelector(".dp-when").replaceWith(dpWhen);
   m.querySelector(".x").onclick=()=>closeModal(m);
   m.querySelector(".cancel").onclick=()=>closeModal(m);
-  m.querySelector(".save").onclick=async()=>{
+  const doSave=async()=>{
     const txt=m.querySelector(".f-txt").value.trim(); if(!txt){toast("Escribe el aviso");return;}
     const w=dpWhen.getValue();
     if(w && "Notification" in window && Notification.permission==="default") Notification.requestPermission();
     await add("avisos",{ texto:txt, nivel:ddNiv.getValue(), cuando:w?new Date(w).toISOString():null, piezaId, done:false, notified:false });
     closeModal(m); toast("Aviso creado");
   };
+  m.querySelector(".save").onclick=doSave;
+  m.querySelector(".f-txt").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); doSave(); } });
+  setTimeout(()=>m.querySelector(".f-txt").focus(),30);
   openModal(m);
 }
 
