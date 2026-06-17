@@ -70,7 +70,7 @@ input[type=date]::-webkit-calendar-picker-indicator,input[type=datetime-local]::
 .dpd.other:hover{background:transparent}
 .dpd.today{box-shadow:inset 0 0 0 1px var(--sec)}
 .dpd.sel{background:var(--teal);color:#06201b;font-weight:600}
-.dptime{display:flex;align-items:center;gap:8px;margin-top:11px;padding-top:11px;border-top:1px solid var(--bord)}
+.dptime{display:flex;align-items:center;gap:8px;margin:0 0 10px;padding-bottom:11px;border-bottom:1px solid var(--bord)}
 .dptime .lbl{font-size:11px;color:var(--sec)}
 .dpfoot{display:flex;justify-content:space-between;margin-top:10px}
 .dpfoot button{font-size:12px;color:var(--teal)}
@@ -427,13 +427,14 @@ function datePicker(initial, withTime=false){
   const field=wrap.querySelector(".dpfield"), pop=wrap.querySelector(".dppop"), vEl=wrap.querySelector(".dpv");
   function fmt(){ if(!sel){ vEl.textContent=withTime?"Elegir fecha y hora":"Elegir fecha"; field.classList.add("ph"); return; } field.classList.remove("ph"); vEl.textContent=`${pad(sel.getDate())}/${pad(sel.getMonth()+1)}/${sel.getFullYear()}`+(withTime?` · ${pad(hh)}:${pad(mm)}`:""); }
   function build(){
-    let h=`<div class="dpnav"><button class="prev"><svg class="svg" style="width:16px;height:16px"><use href="#i-chevl"/></svg></button><span class="mlabel">${MES[viewM]} ${viewY}</span><button class="next"><svg class="svg" style="width:16px;height:16px"><use href="#i-chevr"/></svg></button></div><div class="dpgrid">`+WD.map(w=>`<div class="dpw">${w}</div>`).join("");
+    let h=`<div class="dpnav"><button class="prev"><svg class="svg" style="width:16px;height:16px"><use href="#i-chevl"/></svg></button><span class="mlabel">${MES[viewM]} ${viewY}</span><button class="next"><svg class="svg" style="width:16px;height:16px"><use href="#i-chevr"/></svg></button></div>`;
+    if(withTime) h+=`<div class="dptime"><span class="lbl">Hora</span><span class="dd-h" style="flex:1"></span><span class="dd-m" style="flex:1"></span></div>`;
+    h+=`<div class="dpgrid">`+WD.map(w=>`<div class="dpw">${w}</div>`).join("");
     const start=(new Date(viewY,viewM,1).getDay()+6)%7, dim=new Date(viewY,viewM+1,0).getDate(), prev=new Date(viewY,viewM,0).getDate();
     for(let i=0;i<start;i++) h+=`<div class="dpd other">${prev-start+1+i}</div>`;
     for(let d=1;d<=dim;d++){ const tdy=today.getFullYear()===viewY&&today.getMonth()===viewM&&today.getDate()===d; const sl=sel&&sel.getFullYear()===viewY&&sel.getMonth()===viewM&&sel.getDate()===d; h+=`<div class="dpd ${tdy?'today':''} ${sl?'sel':''}" data-d="${d}">${d}</div>`; }
     const tot=start+dim; for(let i=tot;i<42;i++) h+=`<div class="dpd other">${i-tot+1}</div>`;
     h+=`</div>`;
-    if(withTime) h+=`<div class="dptime"><span class="lbl">Hora</span><span class="dd-h" style="flex:1"></span><span class="dd-m" style="flex:1"></span></div>`;
     h+=`<div class="dpfoot"><button class="clear">Borrar</button><button class="todaybtn">Hoy</button></div>`;
     pop.innerHTML=h;
     pop.querySelector(".prev").onclick=e=>{e.stopPropagation();viewM--;if(viewM<0){viewM=11;viewY--;}build();};
@@ -450,9 +451,20 @@ function datePicker(initial, withTime=false){
       pop.querySelector(".dd-h").replaceWith(ddH); pop.querySelector(".dd-m").replaceWith(ddM);
     }
   }
-  function place(){ const r=field.getBoundingClientRect(); const ph=withTime?372:312; pop.style.left=r.left+"px"; pop.style.width=Math.max(r.width,262)+"px"; pop.style.top=((r.bottom+6+ph>window.innerHeight)?(r.top-6-ph):(r.bottom+6))+"px"; }
+  function place(){
+    pop.style.maxHeight=(window.innerHeight-16)+"px"; pop.style.overflowY="auto";
+    const r=field.getBoundingClientRect(); const pw=Math.max(r.width,262);
+    pop.style.width=pw+"px";
+    let left=r.left; if(left+pw>window.innerWidth-8) left=window.innerWidth-8-pw; pop.style.left=Math.max(8,left)+"px";
+    const ph=pop.offsetHeight;
+    let top=r.bottom+6;
+    if(top+ph>window.innerHeight-8) top=r.top-6-ph;
+    if(top<8) top=8;
+    if(top+ph>window.innerHeight-8) top=Math.max(8,window.innerHeight-8-ph);
+    pop.style.top=top+"px";
+  }
   function close(){ pop.classList.remove("open"); }
-  field.onclick=e=>{ e.stopPropagation(); const open=pop.classList.contains("open"); document.querySelectorAll(".dd.open,.dppop.open").forEach(x=>x.classList.remove("open")); if(!open){ build(); place(); pop.classList.add("open"); } };
+  field.onclick=e=>{ e.stopPropagation(); const open=pop.classList.contains("open"); document.querySelectorAll(".dd.open,.dppop.open").forEach(x=>x.classList.remove("open")); if(!open){ build(); pop.classList.add("open"); place(); } };
   pop.onclick=e=>e.stopPropagation();
   window.addEventListener("scroll",close,true);
   fmt();
@@ -776,7 +788,10 @@ let histFilter={q:"",proj:"",disk:""};
 let histSort={col:"fechaBackup",dir:"desc"};
 function viewHist(){
   const v=el(`<div class="view"></div>`);
-  v.appendChild(el(`<div class="head"><div><div class="kick">Backup</div><h1>${state.historico.length} registro${state.historico.length===1?"":"s"}</h1></div></div>`));
+  const head=el(`<div class="head"><div><div class="kick">Backup</div><h1>${state.historico.length} registro${state.historico.length===1?"":"s"}</h1></div></div>`);
+  const addB=el(`<button class="btn primary"><svg class="svg"><use href="#i-plus"/></svg>Añadir registro</button>`);
+  addB.onclick=()=>modalHistorico();
+  head.appendChild(addB); v.appendChild(head);
   const f=el(`<div class="filters">
     <input class="f-q" placeholder="Buscar pieza…" value="${esc(histFilter.q)}">
     <span class="dd-proj"></span>
@@ -836,10 +851,11 @@ function histTable(){
   return wrap;
 }
 function modalHistorico(r){
+  const isNew=!(r&&r.id); r=r||{};
   const discoNames=[...new Set([...state.discos.map(d=>d.nombre),...state.historico.map(h=>h.disco),r.disco].filter(Boolean))];
-  const m=el(`<div class="modal"><div class="mh"><h2>Editar registro</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
+  const m=el(`<div class="modal"><div class="mh"><h2>${isNew?"Nuevo registro":"Editar registro"}</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
     <div class="mb">
-      <div><label>Pieza</label><input class="f-pieza" value="${esc(r.pieza||'')}"></div>
+      <div><label>Pieza</label><input class="f-pieza" value="${esc(r.pieza||'')}" placeholder="ej. Hernán Casciari"></div>
       <div style="display:flex;gap:10px">
         <div style="flex:1"><label>Proyecto</label><span class="dd-proj"></span></div>
         <div style="flex:1"><label>Disco</label><span class="dd-disco"></span></div>
@@ -853,7 +869,7 @@ function modalHistorico(r){
         <div><label>Fecha de envío</label><span class="dp-fe"></span></div>
       </div>
     </div>
-    <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">Guardar</button></div></div>`);
+    <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">${isNew?"Crear":"Guardar"}</button></div></div>`);
   const ddProj=dropdown(["Global","AJMX"], r.proyecto==="AJMX"?"AJMX":"Global");
   const ddDisco=dropdown(discoNames.length?discoNames:[r.disco||""], r.disco||(discoNames[0]||""));
   const dpFb=datePicker(r.fechaBackup?r.fechaBackup.slice(0,10):"");
@@ -869,16 +885,18 @@ function modalHistorico(r){
   m.querySelector(".cancel").onclick=()=>closeModal(m);
   m.querySelector(".save").onclick=async()=>{
     const fe=dpFe.getValue(), fb=dpFb.getValue(), pv=m.querySelector(".f-peso").value;
-    await upd("historico",r.id,{
-      pieza:m.querySelector(".f-pieza").value.trim(),
+    const pieza=m.querySelector(".f-pieza").value.trim(); if(!pieza){toast("Pon el nombre de la pieza");return;}
+    const data={
+      pieza,
       proyecto:ddProj.getValue(),
       disco:ddDisco.getValue(),
       pesoGB: pv!=="" ? num(pv) : null,
       fechaBackup: fb ? new Date(fb).toISOString() : null,
       enviadoOficina: env,
       fechaEnvio: env ? (fe ? new Date(fe).toISOString() : (r.fechaEnvio||null)) : null
-    });
-    closeModal(m); toast("Registro actualizado");
+    };
+    if(isNew) await add("historico",data); else await upd("historico",r.id,data);
+    closeModal(m); toast(isNew?"Registro añadido":"Registro actualizado");
   };
   openModal(m);
 }
