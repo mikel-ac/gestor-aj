@@ -270,6 +270,7 @@ tr:hover td{background:var(--panel)}
   .cockpit{grid-template-columns:1fr}
   main{padding:16px 14px 70px}
   .rail{width:54px}
+  .rail .tip{display:none!important}
 }
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -466,7 +467,9 @@ function datePicker(initial, withTime=false){
   function close(){ pop.classList.remove("open"); }
   field.onclick=e=>{ e.stopPropagation(); const open=pop.classList.contains("open"); document.querySelectorAll(".dd.open,.dppop.open").forEach(x=>x.classList.remove("open")); if(!open){ build(); pop.classList.add("open"); place(); } };
   pop.onclick=e=>e.stopPropagation();
-  window.addEventListener("scroll",close,true);
+  pop.addEventListener("mousedown",e=>e.stopPropagation());
+  const onScroll=e=>{ if(!pop.classList.contains("open")) return; if(pop.contains(e.target)) return; place(); };
+  window.addEventListener("scroll",onScroll,true);
   fmt();
   wrap.getValue=()=> sel ? (`${sel.getFullYear()}-${pad(sel.getMonth()+1)}-${pad(sel.getDate())}`+(withTime?`T${pad(hh)}:${pad(mm)}`:"")) : "";
   return wrap;
@@ -546,7 +549,15 @@ function openDetail(id){ state.sel=id; state.notesOpen=false; current="detail"; 
 $("#setBtn").onclick=()=>{ current="set"; document.querySelectorAll(".nav").forEach(n=>n.classList.remove("active")); render(); };
 
 /* ---------- pieza helpers ---------- */
-const activePiezas = ()=>state.piezas.filter(p=>!p.archived).sort((a,b)=>(a.fechaPub||"").localeCompare(b.fechaPub||""));
+const activePiezas = ()=>state.piezas.filter(p=>!p.archived).sort((a,b)=> ((a.orden??1e9)-(b.orden??1e9)) || (a.fechaPub||"").localeCompare(b.fechaPub||""));
+let dragPiezaId=null;
+function reorderPiezas(fromId,toId){
+  const ord=activePiezas();
+  const fi=ord.findIndex(x=>x.id===fromId), ti=ord.findIndex(x=>x.id===toId);
+  if(fi<0||ti<0||fi===ti) return;
+  const [m]=ord.splice(fi,1); ord.splice(ti,0,m);
+  ord.forEach((x,i)=>{ if(x.orden!==i) upd("piezas",x.id,{orden:i}); });
+}
 function progress(p){ const pasos=(p.pasos||[]).slice(); while(pasos.length<PASOS.length) pasos.push(false); const sub=p.sub5||{sub:false,sono:false}; if(GATE_IDX>=0) pasos[GATE_IDX]=!!(sub.sub&&sub.sono); return pasos; }
 function nextStep(p){ const pasos=progress(p); const i=pasos.findIndex(x=>!x); return i; }
 
@@ -587,10 +598,12 @@ function entryCard(p){
   const segs=pasos.map((d,i)=>`<span class="${d?'d':(i===GATE_IDX&&isGate?'g':'')}"></span>`).join("");
   const statusTxt = ni===-1 ? "Lista para máster" : PASOS[ni];
   const pi=pubInfo(p);
-  const card=el(`<div class="entry ${isGate?'gate':''}">
+  const card=el(`<div class="entry ${isGate?'gate':''}" draggable="true">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:14px">
-      <div><div style="font-size:18px;font-weight:600;font-family:var(--disp);letter-spacing:-.2px">${esc(p.protagonista||"Sin nombre")}</div>
-        <div style="font-size:12.5px;color:${pi.col};margin-top:3px">${pi.txt}</div></div>
+      <div style="display:flex;align-items:flex-start;gap:9px;min-width:0">
+        <span class="cardgrip" style="color:var(--ter);cursor:grab;margin-top:5px;flex:none"><svg class="svg" style="width:13px;height:13px"><use href="#i-grip"/></svg></span>
+        <div style="min-width:0"><div style="font-size:18px;font-weight:600;font-family:var(--disp);letter-spacing:-.2px">${esc(p.protagonista||"Sin nombre")}</div>
+        <div style="font-size:12.5px;color:${pi.col};margin-top:3px">${pi.txt}</div></div></div>
       ${isGate?`<span class="tag" style="color:var(--amber)">paso ${GATE_IDX+1}</span>`:`<span class="tag">${esc(p.proyecto||"")}</span>`}</div>
     <div class="bar" style="height:7px">${segs}</div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px">
@@ -598,6 +611,10 @@ function entryCard(p){
       <span class="expander" style="font-size:12.5px">${nNotas} nota${nNotas===1?'':'s'} · abrir <svg class="svg"><use href="#i-chevr"/></svg></span></div>
   </div>`);
   card.onclick=()=>openDetail(p.id);
+  card.ondragstart=e=>{ dragPiezaId=p.id; e.dataTransfer.effectAllowed="move"; card.style.opacity=".45"; };
+  card.ondragend=()=>{ card.style.opacity="1"; dragPiezaId=null; };
+  card.ondragover=e=>{ e.preventDefault(); };
+  card.ondrop=e=>{ e.preventDefault(); if(dragPiezaId&&dragPiezaId!==p.id) reorderPiezas(dragPiezaId,p.id); };
   return card;
 }
 
@@ -920,13 +937,37 @@ function reorderDiscos(fromId,toId){
   ord.forEach((x,i)=>{ if(x.orden!==i) upd("discos",x.id,{orden:i}); });
 }
 let dragDiscoId=null;
+let diskSearch="";
 function viewDisk(){
   const v=el(`<div class="view"></div>`);
   const head=el(`<div class="head"><div><div class="kick">Discos duros</div><h1>Inventario</h1></div></div>`);
   const addB=el(`<button class="btn primary"><svg class="svg"><use href="#i-plus"/></svg>Añadir disco</button>`); addB.onclick=()=>modalDisco();
   head.appendChild(addB); v.appendChild(head);
   if(!state.discos.length){ v.appendChild(el(`<div class="empty"><div class="big">Sin discos todavía</div>Añade tus discos para controlar el espacio libre.</div>`)); return v; }
-  if(state.discos.length>1) v.appendChild(el(`<div style="font-size:11.5px;color:var(--ter);margin-bottom:10px">Arrastra los discos para reordenarlos a tu gusto.</div>`));
+
+  // Buscador de proyectos / protagonistas
+  const search=el(`<div style="margin-bottom:14px"><input class="f-dsearch" placeholder="Buscar proyecto o protagonista…" value="${esc(diskSearch)}" style="width:100%"></div>`);
+  const results=el(`<div></div>`);
+  function runSearch(q){
+    diskSearch=q; results.innerHTML="";
+    q=q.trim().toLowerCase(); if(!q){ g.style.display=""; hint.style.display=""; return; }
+    g.style.display="none"; hint.style.display="none";
+    const hits=[];
+    state.discos.forEach(d=>discoProjs(d).forEach(pr=>{ if((pr.nombre||"").toLowerCase().includes(q)) hits.push({d,pr}); }));
+    if(!hits.length){ results.appendChild(el(`<div style="font-size:12.5px;color:var(--ter);padding:6px 2px">Sin resultados.</div>`)); return; }
+    hits.forEach(h=>{
+      const row=el(`<div class="panel" style="padding:11px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;cursor:pointer">
+        <div style="flex:1"><div style="font-size:13.5px">${esc(h.pr.nombre)}</div><div style="font-size:11.5px;color:var(--sec);margin-top:2px">en <b style="color:var(--teal);font-weight:500">${esc(h.d.nombre)}</b>${h.pr.pesoGB!=null?` · ${fmtSize(h.pr.pesoGB)}`:''}</div></div>
+        <svg class="svg" style="width:15px;height:15px;color:var(--ter)"><use href="#i-chevr"/></svg></div>`);
+      row.onclick=()=>openDisco(h.d.id);
+      results.appendChild(row);
+    });
+  }
+  search.querySelector(".f-dsearch").oninput=e=>runSearch(e.target.value);
+  v.appendChild(search); v.appendChild(results);
+
+  const hint = state.discos.length>1 ? el(`<div style="font-size:11.5px;color:var(--ter);margin-bottom:10px">Arrastra los discos para reordenarlos a tu gusto.</div>`) : el(`<div style="display:none"></div>`);
+  v.appendChild(hint);
   const g=el(`<div class="grid2"></div>`);
   orderedDiscos().forEach(d=>{
     const cap=num(d.capacidadGB), used=discoUsado(d), free=Math.max(0,cap-used), pct=discoPct(used,cap);
@@ -946,7 +987,9 @@ function viewDisk(){
     card.ondrop=e=>{ e.preventDefault(); card.style.outline="none"; if(dragDiscoId&&dragDiscoId!==d.id) reorderDiscos(dragDiscoId,d.id); };
     g.appendChild(card);
   });
-  v.appendChild(g); return v;
+  v.appendChild(g);
+  if(diskSearch.trim()) runSearch(diskSearch);
+  return v;
 }
 
 function viewDiscoDetail(){
@@ -1178,8 +1221,30 @@ function viewSettings(){
 }
 
 /* ============ MODALES ============ */
-function openModal(node){ const root=$("#modalRoot"); const scrim=el(`<div class="scrim"></div>`); scrim.appendChild(node); scrim.onclick=e=>{if(e.target===scrim)scrim.remove();}; root.appendChild(scrim); return scrim; }
-function closeModal(n){ n.closest(".scrim").remove(); }
+function openModal(node){
+  const root=$("#modalRoot");
+  const scrim=el(`<div class="scrim"></div>`);
+  scrim.appendChild(node);
+  // Only treat as "click outside" when BOTH press and release happen on the scrim itself.
+  // This prevents accidental closes when selecting/dragging text from inside the modal.
+  let downOnScrim=false;
+  scrim.addEventListener("mousedown",e=>{ downOnScrim = (e.target===scrim); });
+  scrim.addEventListener("mouseup",e=>{ if(e.target===scrim && downOnScrim) closeScrim(); downOnScrim=false; });
+  function closeScrim(){ document.removeEventListener("keydown",onKey,true); scrim.remove(); }
+  function onKey(e){
+    if(e.key==="Escape"){
+      // if a date popup or dropdown is open, let it close first
+      const openPop=scrim.querySelector(".dppop.open,.dd.open");
+      if(openPop){ openPop.classList.remove("open"); e.stopPropagation(); return; }
+      e.stopPropagation(); closeScrim();
+    }
+  }
+  document.addEventListener("keydown",onKey,true);
+  scrim._close=closeScrim;
+  root.appendChild(scrim);
+  return scrim;
+}
+function closeModal(n){ const s=n.closest(".scrim"); if(s){ if(s._close) s._close(); else s.remove(); } }
 
 function modalPieza(p){
   const m=el(`<div class="modal"><div class="mh"><h2>${p?"Editar pieza":"Nueva pieza"}</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
