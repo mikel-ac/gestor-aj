@@ -946,7 +946,7 @@ function viewDisk(){
   if(!state.discos.length){ v.appendChild(el(`<div class="empty"><div class="big">Sin discos todavía</div>Añade tus discos para controlar el espacio libre.</div>`)); return v; }
 
   // Buscador de proyectos / protagonistas
-  const search=el(`<div style="margin-bottom:14px"><input class="f-dsearch" placeholder="Buscar proyecto o protagonista…" value="${esc(diskSearch)}" style="width:100%"></div>`);
+  const search=el(`<div style="margin-bottom:14px"><input class="f-dsearch" placeholder="Buscar proyecto" value="${esc(diskSearch)}" style="width:100%"></div>`);
   const results=el(`<div></div>`);
   function runSearch(q){
     diskSearch=q; results.innerHTML="";
