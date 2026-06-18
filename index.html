@@ -38,7 +38,7 @@ input[type=date]::-webkit-calendar-picker-indicator,input[type=datetime-local]::
 .dd .ddhead .svg{width:14px;height:14px;color:var(--sec);transition:transform .2s ease;flex:none}
 .dd.open .ddhead .svg{transform:rotate(180deg)}
 .dd .ddval.placeholder{color:var(--ter)}
-.dd .ddlist{position:absolute;top:calc(100% + 5px);left:0;right:0;background:var(--panel2);border:1px solid var(--bord);border-radius:var(--r-sm);padding:5px;z-index:60;box-shadow:0 12px 34px rgba(0,0,0,.5);max-height:230px;overflow:auto;display:none}
+.dd .ddlist{position:fixed;background:var(--panel2);border:1px solid var(--bord);border-radius:var(--r-sm);padding:5px;z-index:120;box-shadow:0 12px 34px rgba(0,0,0,.5);max-height:230px;overflow:auto;display:none}
 .dd.open .ddlist{display:block;animation:fade .14s ease}
 .dd .ddopt{padding:8px 10px;border-radius:6px;font-size:13px;cursor:pointer;color:var(--txt);white-space:nowrap}
 .dd .ddopt:hover{background:var(--bg)}
@@ -323,7 +323,7 @@ tr:hover td{background:var(--panel)}
       <button class="nav active" data-view="prod"><svg class="svg"><use href="#i-prod"/></svg><span class="tip">Producción</span></button>
       <button class="nav" data-view="hist"><svg class="svg"><use href="#i-hist"/></svg><span class="tip">Backup</span></button>
       <button class="nav" data-view="disk"><svg class="svg"><use href="#i-disk"/></svg><span class="tip">Discos</span></button>
-      <button class="nav" data-view="corte"><svg class="svg"><use href="#i-bookmark"/></svg><span class="tip">Piezas sin publicar</span></button>
+      <button class="nav" data-view="corte"><svg class="svg"><use href="#i-bookmark"/></svg><span class="tip">Archivo</span></button>
     </nav>
     <div class="spacer"></div>
     <button class="x" id="setBtn" title="Ajustes"><svg class="svg" style="width:19px;height:19px"><use href="#i-gear"/></svg></button>
@@ -410,7 +410,17 @@ function dropdown(opts, current, onChange){
     it.onclick=(e)=>{ e.stopPropagation(); val=o.value; const vEl=dd.querySelector(".ddval"); vEl.textContent=o.label; vEl.classList.toggle("placeholder",isPlaceholder(val)); list.querySelectorAll(".ddopt").forEach(x=>x.classList.toggle("sel",x===it)); dd.classList.remove("open"); onChange&&onChange(val); };
     list.appendChild(it);
   });
-  dd.querySelector(".ddhead").onclick=(e)=>{ e.stopPropagation(); const open=dd.classList.contains("open"); document.querySelectorAll(".dd.open").forEach(x=>x.classList.remove("open")); if(!open) dd.classList.add("open"); };
+  function placeList(){
+    const r=dd.querySelector(".ddhead").getBoundingClientRect();
+    list.style.left=Math.max(8,r.left)+"px"; list.style.width=r.width+"px";
+    const below=window.innerHeight-r.bottom-8, above=r.top-8;
+    list.style.maxHeight="230px";
+    const need=Math.min(list.scrollHeight,230);
+    if(below>=need || below>=above){ list.style.top=(r.bottom+5)+"px"; list.style.maxHeight=Math.min(230,below)+"px"; }
+    else { const h=Math.min(230,above,list.scrollHeight); list.style.maxHeight=Math.min(230,above)+"px"; list.style.top=(r.top-5-h)+"px"; }
+  }
+  dd.querySelector(".ddhead").onclick=(e)=>{ e.stopPropagation(); const open=dd.classList.contains("open"); document.querySelectorAll(".dd.open").forEach(x=>x.classList.remove("open")); if(!open){ dd.classList.add("open"); placeList(); } };
+  window.addEventListener("scroll",e=>{ if(dd.classList.contains("open") && !list.contains(e.target)) placeList(); },true);
   dd.getValue=()=>val;
   return dd;
 }
@@ -489,7 +499,7 @@ const upd = (name,id,data)=>updateDoc(doc(db,name,id),data);
 const del = (name,id)=>deleteDoc(doc(db,name,id));
 
 function listen(){
-  onSnapshot(col("piezas"), s=>{ state.piezas=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="prod"||current==="detail")render(); });
+  onSnapshot(col("piezas"), s=>{ state.piezas=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="prod"||current==="detail"||current==="corte")render(); });
   onSnapshot(col("historico"), s=>{ state.historico=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="hist")render(); });
   onSnapshot(col("discos"), s=>{ state.discos=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="disk"||current==="diskDetail"||current==="prod")render(); });
   onSnapshot(col("notas"), s=>{ state.notas=s.docs.map(d=>({id:d.id,...d.data()})); if(current==="note"||current==="detail")render(); });
@@ -545,7 +555,7 @@ function render(){
   if(current==="corte") m.innerHTML="", m.appendChild(viewCortes());
   $("#setBtn").classList.toggle("active", current==="set");
 }
-function openDetail(id){ state.sel=id; state.notesOpen=false; current="detail"; document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view==="prod")); render(); }
+function openDetail(id){ state.sel=id; state.notesOpen=false; state.detailFrom=(current==="corte")?"corte":"prod"; current="detail"; document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===state.detailFrom)); render(); }
 $("#setBtn").onclick=()=>{ current="set"; document.querySelectorAll(".nav").forEach(n=>n.classList.remove("active")); render(); };
 
 /* ---------- pieza helpers ---------- */
@@ -696,10 +706,13 @@ function viewDetail(){
   if(!p){ v.appendChild(el(`<div class="empty"><div class="big">Pieza no disponible</div>Puede que se haya archivado en Backup.</div>`)); const b=el(`<button class="btn" style="margin-top:12px">‹ Volver a Producción</button>`); b.onclick=goProd; v.appendChild(b); return v; }
   const pasos=progress(p); const ni=nextStep(p);
 
-  const back=el(`<div style="font-size:13px;color:var(--sec);margin-bottom:10px;cursor:pointer">‹ Producción</div>`);
-  back.onclick=goProd; v.appendChild(back);
+  const fromArch = state.detailFrom==="corte";
+  const back=el(`<div style="font-size:13px;color:var(--sec);margin-bottom:10px;cursor:pointer">‹ ${fromArch?"Archivo":"Producción"}</div>`);
+  back.onclick=()=>{ if(fromArch){ current="corte"; document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view==="corte")); render(); } else goProd(); };
+  v.appendChild(back);
 
-  const hd=el(`<div class="head"><div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap"><h1>${esc(p.protagonista)}</h1><span class="tag" style="color:var(--teal)">${esc(p.proyecto||"")}</span></div></div>`);
+  const hd=el(`<div class="head"><div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap"><h1>${esc(p.protagonista)}</h1><span class="tag" style="color:var(--teal)">${esc(p.proyecto||"")}</span><span class="tag discochip" style="cursor:pointer;color:var(--sec);display:inline-flex;align-items:center;gap:5px"><svg class="svg" style="width:12px;height:12px"><use href="#i-disk"/></svg>${p.disco?esc(p.disco):"Asignar disco"}</span></div></div>`);
+  hd.querySelector(".discochip").onclick=()=>modalAsignarDisco(p);
   const hacts=el(`<div style="display:flex;align-items:center;gap:10px">
     <span style="font-size:12px;color:var(--sec);font-family:var(--mono)">${p.fechaPub?esc(fmtFechaPub(p.fechaPub)):"sin fecha"}</span>
     <button class="btn ed" style="padding:6px 10px"><svg class="svg"><use href="#i-edit"/></svg></button>
@@ -1095,30 +1108,66 @@ function viewNote(){
 }
 function filteredNotes(){ let l=state.notas.slice().reverse(); if(noteFilter) l=l.filter(n=>n.categoria===noteFilter); return l; }
 
-/* ============ VIEW: PIEZAS SIN PUBLICAR ============ */
+/* ============ VIEW: ARCHIVO ============ */
 function viewCortes(){
   const v=el(`<div class="view"></div>`);
-  const head=el(`<div class="head"><div><div class="kick">Piezas sin publicar</div><h1>${state.cortes.length} pieza${state.cortes.length===1?'':'s'}</h1></div></div>`);
-  const add=el(`<button class="btn primary"><svg class="svg"><use href="#i-plus"/></svg>Añadir pieza</button>`);
+  const head=el(`<div class="head"><div><div class="kick">Archivo</div><h1>Piezas</h1></div></div>`);
+  const add=el(`<button class="btn primary"><svg class="svg"><use href="#i-plus"/></svg>Añadir sin publicar</button>`);
   add.onclick=()=>modalCorte();
   head.appendChild(add); v.appendChild(head);
-  if(!state.cortes.length){ v.appendChild(el(`<div class="empty"><div class="big">Nada por aquí</div>Añade una pieza que aún no has publicado para no perderle la pista.</div>`)); return v; }
-  const grid=el(`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px"></div>`);
-  state.cortes.slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).forEach(c=>{
-    const card=el(`<div class="panel" style="padding:16px 18px">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
-        <div style="font-size:16px;font-weight:600;font-family:var(--disp)">${esc(c.personaje||"Sin nombre")}</div>
-        <div style="display:flex;gap:3px"><button class="x ed" style="width:28px;height:28px"><svg class="svg" style="width:14px;height:14px"><use href="#i-edit"/></svg></button><button class="x rm" style="width:28px;height:28px"><svg class="svg" style="width:14px;height:14px"><use href="#i-trash"/></svg></button></div>
-      </div>
-      ${c.fecha?`<div class="mono" style="font-size:11.5px;color:var(--sec);margin-top:4px">${fmtDateY(c.fecha)}</div>`:''}
-      ${c.notas?`<div style="font-size:12.5px;margin-top:11px;white-space:pre-wrap;line-height:1.5">${esc(c.notas)}</div>`:''}
-      ${c.frameLink?`<a class="btn" href="${esc(c.frameLink)}" target="_blank" rel="noopener" style="margin-top:13px;display:inline-flex"><svg class="svg"><use href="#i-link"/></svg>Abrir en Frame.io</a>`:''}
-    </div>`);
-    card.querySelector(".ed").onclick=()=>modalCorte(c);
-    card.querySelector(".rm").onclick=()=>{ if(confirm(`¿Borrar la pieza de "${c.personaje}"?`)) del("cortes",c.id); };
-    grid.appendChild(card);
+
+  // --- Sin publicar ---
+  v.appendChild(el(`<div class="ph" style="margin:2px 0 12px">Sin publicar${state.cortes.length?` · ${state.cortes.length}`:''}</div>`));
+  if(!state.cortes.length){
+    v.appendChild(el(`<div style="font-size:12.5px;color:var(--ter);margin-bottom:28px">Nada pendiente de publicar.</div>`));
+  } else {
+    const grid=el(`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;margin-bottom:28px"></div>`);
+    state.cortes.slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).forEach(c=>{
+      const card=el(`<div class="panel" style="padding:16px 18px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+          <div style="font-size:16px;font-weight:600;font-family:var(--disp)">${esc(c.personaje||"Sin nombre")}</div>
+          <div style="display:flex;gap:3px"><button class="x ed" style="width:28px;height:28px"><svg class="svg" style="width:14px;height:14px"><use href="#i-edit"/></svg></button><button class="x rm" style="width:28px;height:28px"><svg class="svg" style="width:14px;height:14px"><use href="#i-trash"/></svg></button></div>
+        </div>
+        ${c.fecha?`<div class="mono" style="font-size:11.5px;color:var(--sec);margin-top:4px">${fmtDateY(c.fecha)}</div>`:''}
+        ${c.notas?`<div style="font-size:12.5px;margin-top:11px;white-space:pre-wrap;line-height:1.5">${esc(c.notas)}</div>`:''}
+        ${c.frameLink?`<a class="btn" href="${esc(c.frameLink)}" target="_blank" rel="noopener" style="margin-top:13px;display:inline-flex"><svg class="svg"><use href="#i-link"/></svg>Abrir en Frame.io</a>`:''}
+      </div>`);
+      card.querySelector(".ed").onclick=()=>modalCorte(c);
+      card.querySelector(".rm").onclick=()=>{ if(confirm(`¿Borrar la pieza de "${c.personaje}"?`)) del("cortes",c.id); };
+      grid.appendChild(card);
+    });
+    v.appendChild(grid);
+  }
+
+  // --- Terminadas (archivadas) ---
+  const done=state.piezas.filter(p=>p.archived).sort((a,b)=>{
+    const da=(a.fechas&&a.fechas[BACKUP_IDX])||a.fechaPub||"", db=(b.fechas&&b.fechas[BACKUP_IDX])||b.fechaPub||"";
+    return db.localeCompare(da);
   });
-  v.appendChild(grid);
+  v.appendChild(el(`<div class="ph" style="margin:2px 0 12px">Terminadas${done.length?` · ${done.length}`:''}</div>`));
+  if(!done.length){
+    v.appendChild(el(`<div style="font-size:12.5px;color:var(--ter)">Aún no has terminado ninguna pieza. Cuando completes el backup de una, aparecerá aquí.</div>`));
+  } else {
+    const grid2=el(`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px"></div>`);
+    done.forEach(p=>{
+      const nNotas=state.notas.filter(n=>n.piezaId===p.id).length;
+      const dt=p.fechas&&p.fechas[BACKUP_IDX];
+      const card=el(`<div class="panel" style="padding:16px 18px;cursor:pointer">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+          <div style="font-size:16px;font-weight:600;font-family:var(--disp)">${esc(p.protagonista||"Sin nombre")}</div>
+          <span class="tag">${esc(p.proyecto||"")}</span></div>
+        <div style="font-size:11.5px;color:var(--sec);margin-top:5px;font-family:var(--mono)">${dt?"Terminada "+fmtDateY(dt):"Terminada"}</div>
+        <div style="font-size:12px;color:var(--ter);margin-top:10px;display:flex;align-items:center;gap:13px">
+          ${p.disco?`<span style="display:inline-flex;align-items:center;gap:5px"><svg class="svg" style="width:12px;height:12px"><use href="#i-disk"/></svg>${esc(p.disco)}</span>`:''}
+          <span>${nNotas} nota${nNotas===1?'':'s'}</span>
+          <span class="expander" style="margin-left:auto">abrir <svg class="svg"><use href="#i-chevr"/></svg></span>
+        </div>
+      </div>`);
+      card.onclick=()=>openDetail(p.id);
+      grid2.appendChild(card);
+    });
+    v.appendChild(grid2);
+  }
   return v;
 }
 
@@ -1298,10 +1347,33 @@ function modalPieza(p){
   openModal(m);
 }
 
+function modalAsignarDisco(p){
+  const m=el(`<div class="modal"><div class="mh"><h2>Disco de "${esc(p.protagonista)}"</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
+    <div class="mb">
+      <div><label>Disco duro</label><span class="dd-disco"></span><input class="f-disconew" placeholder="Nombre del disco nuevo" style="display:none;margin-top:7px"></div>
+    </div>
+    <div class="mf"><button class="btn cancel">Cancelar</button><button class="btn primary save">Guardar</button></div></div>`);
+  const diskNames=state.discos.map(d=>d.nombre).filter(Boolean);
+  const newInput=m.querySelector(".f-disconew");
+  const startVal = p.disco && !diskNames.includes(p.disco) ? "" : (p.disco||"");
+  const diskOpts=[{value:"",label:"Sin asignar"}, ...diskNames.map(n=>({value:n,label:n})), {value:"__new__",label:"+ Añadir disco nuevo…"}];
+  const ddDisco=dropdown(diskOpts, startVal, v=>{ newInput.style.display = v==="__new__" ? "block":"none"; if(v==="__new__") setTimeout(()=>newInput.focus(),20); });
+  m.querySelector(".dd-disco").replaceWith(ddDisco);
+  m.querySelector(".x").onclick=()=>closeModal(m);
+  m.querySelector(".cancel").onclick=()=>closeModal(m);
+  m.querySelector(".save").onclick=async()=>{
+    let disco=ddDisco.getValue();
+    if(disco==="__new__"){ const nn=newInput.value.trim(); if(!nn){toast("Escribe el nombre del disco");return;} disco=nn; if(!diskNames.includes(nn)) await add("discos",{nombre:nn,capacidadGB:0,proyectos:[]}); }
+    await upd("piezas",p.id,{disco});
+    closeModal(m); toast("Disco actualizado");
+  };
+  openModal(m);
+}
+
 function modalBackup(p){
   const m=el(`<div class="modal"><div class="mh"><h2>Backup de "${esc(p.protagonista)}"</h2><button class="x"><svg class="svg"><use href="#i-x"/></svg></button></div>
     <div class="mb">
-      <div style="font-size:12.5px;color:var(--sec)">Al confirmar, archivo la pieza en Backup y descuento el peso del disco.</div>
+      <div style="font-size:12.5px;color:var(--sec)">Al confirmar, archivo la pieza y la añado como proyecto al disco que elijas.</div>
       <div><label>¿En qué disco hiciste el backup?</label><span class="dd-disk"></span>${state.discos.length?'':'<div style="font-size:11px;color:var(--ter);margin-top:5px">No tienes discos aún; puedes dejarlo vacío y añadirlos luego.</div>'}</div>
       <div><label>Peso del backup (GB)</label><input type="number" class="f-peso" placeholder="ej. 248"></div>
     </div>
