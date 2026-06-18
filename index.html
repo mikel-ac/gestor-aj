@@ -711,7 +711,7 @@ function viewDetail(){
   back.onclick=()=>{ if(fromArch){ current="corte"; document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view==="corte")); render(); } else goProd(); };
   v.appendChild(back);
 
-  const hd=el(`<div class="head"><div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap"><h1>${esc(p.protagonista)}</h1><span class="tag" style="color:var(--teal)">${esc(p.proyecto||"")}</span><span class="tag discochip" style="cursor:pointer;color:var(--sec);display:inline-flex;align-items:center;gap:5px"><svg class="svg" style="width:12px;height:12px"><use href="#i-disk"/></svg>${p.disco?esc(p.disco):"Asignar disco"}</span></div></div>`);
+  const hd=el(`<div class="head"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><h1>${esc(p.protagonista)}</h1><span class="tag" style="color:var(--teal);line-height:1.5">${esc(p.proyecto||"")}</span><span class="tag discochip" style="cursor:pointer;color:var(--sec);display:inline-flex;align-items:center;gap:5px;line-height:1.5"><svg class="svg" style="width:12px;height:12px"><use href="#i-disk"/></svg>${p.disco?esc(p.disco):"Asignar disco"}</span></div></div>`);
   hd.querySelector(".discochip").onclick=()=>modalAsignarDisco(p);
   const hacts=el(`<div style="display:flex;align-items:center;gap:10px">
     <span style="font-size:12px;color:var(--sec);font-family:var(--mono)">${p.fechaPub?esc(fmtFechaPub(p.fechaPub)):"sin fecha"}</span>
@@ -937,6 +937,8 @@ function modalHistorico(r){
 const discoProjs = d => Array.isArray(d.proyectos) ? d.proyectos : [];
 const discoUsado = d => discoProjs(d).reduce((s,p)=>s+num(p.pesoGB),0);
 const round1 = n => Math.round((Number(n)||0)*10)/10;
+const norm = s => (s||"").toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ").trim();
+const nameMatches = (a,b) => { const na=norm(a), nb=norm(b); if(!na||!nb) return false; return na===nb||na.includes(nb)||nb.includes(na); };
 const fmtSize = gb => { gb=Number(gb)||0; return gb>=1000 ? round1(gb/1000)+" TB" : round1(gb)+" GB"; };
 const discoPct = (used,cap) => cap ? round1(used/cap*100) : 0;
 function openDisco(id){ state.selDisco=id; current="diskDetail"; document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view==="disk")); render(); }
@@ -1386,12 +1388,32 @@ function modalBackup(p){
     const diskId=ddDisk.getValue();
     const peso=num(m.querySelector(".f-peso").value);
     const disk=state.discos.find(d=>d.id===diskId);
-    const pasos=progress(p).slice(); pasos[BACKUP_IDX]=true;
-    const fechas=p.fechas||{}; fechas[BACKUP_IDX]=new Date().toISOString();
+    const pasos=progress(p).slice(); if(BACKUP_IDX>=0) pasos[BACKUP_IDX]=true;
+    const fechas=p.fechas||{}; if(BACKUP_IDX>=0) fechas[BACKUP_IDX]=new Date().toISOString();
     await upd("piezas",p.id,{pasos,fechas,archived:true});
-    await add("historico",{ pieza:p.protagonista, proyecto:p.proyecto, disco:disk?disk.nombre:"", pesoGB:peso||null, enviadoOficina:false, fechaEnvio:null, fechaBackup:new Date().toISOString(), fechaArchivo:new Date().toISOString(), piezaId:p.id });
-    if(disk){ const arr=discoProjs(disk).slice(); arr.push({nombre:p.protagonista, pesoGB:peso||null}); await upd("discos",disk.id,{proyectos:arr}); }
-    closeModal(m); toast("Backup hecho · guardado en la pestaña Backup"); if(current==="detail") goProd();
+    const now=new Date().toISOString();
+    // Backup tab: actualiza un registro existente de esta pieza (aunque el nombre tenga código extra) o crea uno nuevo
+    const exist=state.historico.find(h=> (h.piezaId&&h.piezaId===p.id) || nameMatches(h.pieza, p.protagonista));
+    if(exist){
+      await upd("historico",exist.id,{
+        disco: disk?disk.nombre:(exist.disco||""),
+        pesoGB: peso||exist.pesoGB||null,
+        fechaBackup: exist.fechaBackup||now,
+        fechaArchivo: now,
+        piezaId: p.id
+      });
+    } else {
+      await add("historico",{ pieza:p.protagonista, proyecto:p.proyecto, disco:disk?disk.nombre:"", pesoGB:peso||null, enviadoOficina:false, fechaEnvio:null, fechaBackup:now, fechaArchivo:now, piezaId:p.id });
+    }
+    // Discos: si ya está esa pieza en el disco (nombre puede tener código extra) no duplica; solo actualiza peso si lo das
+    if(disk){
+      const arr=discoProjs(disk).slice();
+      const idx=arr.findIndex(pr=> nameMatches(pr.nombre, p.protagonista));
+      if(idx>=0){ if(peso) arr[idx]={...arr[idx], pesoGB:peso}; }
+      else arr.push({nombre:p.protagonista, pesoGB:peso||null});
+      await upd("discos",disk.id,{proyectos:arr});
+    }
+    closeModal(m); toast("Backup hecho · sincronizado con Backup y Discos"); if(current==="detail") goProd();
   };
   openModal(m);
 }
