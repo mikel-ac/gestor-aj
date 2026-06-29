@@ -758,18 +758,25 @@ function viewDetail(){
   return v;
 }
 
+function tcSeconds(tc){
+  if(!tc) return Infinity;
+  const parts=String(tc).split(":").map(x=>parseInt(x,10));
+  if(parts.some(isNaN)) return Infinity;
+  return parts.reduce((s,p)=>s*60+p,0);
+}
+const NOTES_PREVIEW=5;
 function notesSection(p){
-  const notes=state.notas.filter(n=>n.piezaId===p.id).slice().reverse();
+  const notes=state.notas.filter(n=>n.piezaId===p.id).slice().sort((a,b)=>tcSeconds(a.tc)-tcSeconds(b.tc));
   const wrap=el(`<div></div>`);
   const hd=el(`<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-family:var(--mono);font-size:11px;letter-spacing:1.5px;color:var(--sec);text-transform:uppercase">Notas de revisión · ${notes.length}</div></div>`);
   if(notes.length){ const ca=el(`<button style="font-size:11px;color:var(--teal);display:flex;align-items:center;gap:5px"><svg class="svg" style="width:13px;height:13px"><use href="#i-copy"/></svg>copiar todas</button>`); ca.onclick=()=>copy(notes.map(formatNote).join("\n\n———\n\n")); hd.appendChild(ca); }
   wrap.appendChild(hd);
   const box=el(`<div style="margin-top:8px"></div>`);
   if(!notes.length) box.appendChild(el(`<div style="font-size:12px;color:var(--ter);padding:6px 0">Sin notas todavía. Las añades abajo cuando recibas feedback.</div>`));
-  (state.notesOpen?notes:notes.slice(0,2)).forEach(n=>box.appendChild(noteItem(n)));
+  (state.notesOpen?notes:notes.slice(0,NOTES_PREVIEW)).forEach(n=>box.appendChild(noteItem(n)));
   wrap.appendChild(box);
-  if(notes.length>2){
-    const t=el(`<button style="font-size:12px;color:var(--sec);margin-top:8px">${state.notesOpen?"Ocultar notas":"Ver las "+notes.length+" notas"}</button>`);
+  if(notes.length>NOTES_PREVIEW){
+    const t=el(`<button class="btn" style="margin-top:10px;font-size:12px;padding:7px 12px;display:inline-flex;align-items:center;gap:6px">${state.notesOpen?"Ocultar notas":"Ver las "+notes.length+" notas"}<svg class="svg" style="width:13px;height:13px;transform:rotate(${state.notesOpen?180:0}deg)"><use href="#i-chev"/></svg></button>`);
     t.onclick=()=>{ state.notesOpen=!state.notesOpen; render(); };
     wrap.appendChild(t);
   }
